@@ -32,6 +32,7 @@ import { LoadingState } from "./LoadingState";
 import { JournalManager } from "@/components/journals/JournalManager";
 import { InfoDialog } from "@/components/info/InfoDialog";
 import { AccountButton } from "@/components/auth/AccountButton";
+import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useZoteroKey } from "@/hooks/useZoteroKey";
 import { Button } from "@/components/ui/button";
@@ -346,6 +347,7 @@ export function FeedPage() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
             <AccountButton open={accountOpen} onOpenChange={setAccountOpen} />
             <Button
               variant="ghost"

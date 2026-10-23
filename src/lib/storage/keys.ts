@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
    * library, so it stays in the browser that entered it and travels only to
    * api.zotero.org.
    */
+  /** Theme preference: "system" | "light" | "dark". Not synced — see useTheme. */
+  theme: "stats-feed:theme",
   /**
    * Which generation of the default watchlist this browser has been reset to.
    * Deliberately NOT synced: it records what has happened to this browser, and

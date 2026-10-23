@@ -111,6 +111,25 @@ Psychology, matching 'leadership'"), because the real risk is not misclicking
 the button but not noticing a filter is on. There is no undo, and the dialog
 says so.
 
+### Light and dark
+
+A single header control cycles **light → dark → system**, defaulting to system.
+It is a cycle rather than a binary toggle because "follow the OS" is a real
+third answer, and a two-state toggle silently removes it the first time it is
+touched.
+
+The theme is deliberately **not** synced to the account: it is a property of
+the device you are reading on, and the OS already knows the right answer there.
+An inline script in `<head>` applies the stored choice before first paint, so a
+dark-mode reader never gets a white flash on load.
+
+The dark palette is not a mechanical inversion. The lab's maroon (34.9%
+lightness) and blue (21%) are dark by design and illegible on a dark ground, so
+both are lightened until they pass WCAG AA rather than kept "accurate" and
+unreadable; the background is a warm near-black so the cream identity stays
+recognisable. Measured: body text 14.6:1, card title 13.0:1, white on the
+primary 4.8:1, links 7.5:1.
+
 ### Copying a citation
 
 Every article card has a **Cite** button that copies an APA 7th-edition

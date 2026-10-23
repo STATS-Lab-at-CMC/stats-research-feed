@@ -24,6 +24,79 @@
   --radius: 0.5rem;
 }
 
+/*
+ * Dark palette.
+ *
+ * Not a mechanical inversion: the lab's maroon (34.9% lightness) and blue
+ * (21%) are dark by design and become unreadable on a dark ground, so both are
+ * lightened until they pass contrast rather than kept "accurate" and illegible.
+ * The background is a warm near-black rather than neutral grey, which keeps the
+ * cream identity recognisable instead of turning the app generic at night.
+ *
+ * Measured against WCAG AA (4.5:1 for text):
+ *   foreground on background   14.7:1
+ *   muted foreground on card    6.5:1
+ *   white on primary            4.8:1
+ *   secondary (links) on card   7.6:1
+ *
+ * Declared twice on purpose. The media query handles readers who have asked
+ * their OS for dark and never touched the in-app control, and is guarded so an
+ * explicit "light" choice still wins. The attribute block handles an explicit
+ * choice in either direction.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: 30 8% 10%;
+    --foreground: 36 20% 92%;
+    --card: 30 8% 14%;
+    --card-foreground: 36 20% 92%;
+    --popover: 30 8% 14%;
+    --popover-foreground: 36 20% 92%;
+    --primary: 349 62% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 193 65% 62%;
+    --secondary-foreground: 30 8% 10%;
+    --accent: 310 40% 65%;
+    --accent-foreground: 30 8% 10%;
+    --muted: 30 8% 18%;
+    --muted-foreground: 36 10% 65%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 8% 28%;
+    --input: 30 8% 28%;
+    --ring: 349 62% 58%;
+  }
+}
+
+:root[data-theme="dark"] {
+  --background: 30 8% 10%;
+  --foreground: 36 20% 92%;
+  --card: 30 8% 14%;
+  --card-foreground: 36 20% 92%;
+  --popover: 30 8% 14%;
+  --popover-foreground: 36 20% 92%;
+  --primary: 349 62% 52%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 193 65% 62%;
+  --secondary-foreground: 30 8% 10%;
+  --accent: 310 40% 65%;
+  --accent-foreground: 30 8% 10%;
+  --muted: 30 8% 18%;
+  --muted-foreground: 36 10% 65%;
+  --destructive: 0 70% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 8% 28%;
+  --input: 30 8% 28%;
+  --ring: 349 62% 58%;
+}
+
+/* Lets the browser paint native widgets (scrollbars, form controls) to match. */
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+}
+
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 
