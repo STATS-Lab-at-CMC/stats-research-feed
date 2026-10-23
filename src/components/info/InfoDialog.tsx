@@ -100,10 +100,10 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               rate is 100 per second.
             </p>
             <p>
-              Normal use sits far below that budget. Loading a 26-journal watchlist from cold costs
-              only a handful of requests, because journal lookups are cached for 24 hours, results
-              for 20 minutes, and many journals are combined into one call rather than queried
-              separately. Revisiting within 20 minutes costs nothing at all.
+              Normal use sits far below that budget. Loading the default 38-journal watchlist from
+              cold costs only a handful of requests, because journal lookups are cached for 24
+              hours, results for 20 minutes, and many journals are combined into one call rather
+              than queried separately. Revisiting within 20 minutes costs nothing at all.
             </p>
           </Section>
 
@@ -117,7 +117,7 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               <li>
                 Requests works published in those journals in the last{" "}
                 <span className="font-medium text-foreground">90 days</span>, batching up to 40
-                journals per request and sorting newest first.
+                journals and 200 results per request, sorting newest first.
               </li>
               <li>
                 Keeps only items OpenAlex classifies as research articles or reviews, and drops

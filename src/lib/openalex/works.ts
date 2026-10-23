@@ -2,9 +2,33 @@ import type { Article } from "@/lib/types";
 import { openAlexGet, type OpenAlexListResponse, type OpenAlexWorkRecord } from "./client";
 import { dedupeArticles, normalizeOpenAlexWork } from "./normalize";
 
-const PER_PAGE = 100;
-const MAX_PAGES = 8; // caps requests at 8 even for a very active 90-day window across 26 journals
-const SOURCE_ID_CHUNK_SIZE = 40; // keeps the OR filter well under URL length limits
+/**
+ * OpenAlex's maximum. Using it halves the number of requests for the same
+ * data: the 38-journal default returns ~531 works in a 90-day window, which is
+ * 3 requests at 200 rather than 6 at 100.
+ */
+const PER_PAGE = 200;
+
+/**
+ * Ceiling on requests per chunk, so one pathological watchlist cannot page
+ * forever. 10 x 200 = 2,000 works per chunk, against ~531 for the default
+ * catalogue — roughly a 4x margin.
+ *
+ * The previous 8 x 100 = 800 was set when the catalogue was 26 journals and
+ * returned ~319. At 38 journals that margin had quietly fallen to 1.5x, and
+ * overflow was invisible: the loop simply stopped at the limit and reported
+ * success. `pageLimitHit` below exists so it can never be silent again.
+ */
+const MAX_PAGES = 10;
+
+/**
+ * Journals per `/works` request. 40 keeps the OR'd filter comfortably within
+ * URL limits — the default catalogue builds an 871-character URL against a
+ * ~2,000 practical ceiling — while keeping the number of separate pagination
+ * sequences down. More journals than this simply means more chunks, each with
+ * its own page budget, so total capacity grows rather than shrinks.
+ */
+const SOURCE_ID_CHUNK_SIZE = 40;
 const WORK_SELECT_FIELDS =
   "id,doi,title,display_name,publication_date,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index,type,is_retracted,biblio,publication_year";
 
@@ -60,6 +84,8 @@ export async function fetchRecentWorksForSources(
   const allWorks: OpenAlexWorkRecord[] = [];
   let complete = true;
   let error: string | undefined;
+  /** True when a chunk ran out of page budget with results still waiting. */
+  let pageLimitHit = false;
 
   for (const sourceIdChunk of chunk(sourceIds, SOURCE_ID_CHUNK_SIZE)) {
     const filter = `primary_location.source.id:${sourceIdChunk.join("|")},from_publication_date:${fromDate},${PUBLICATION_TYPE_FILTER}`;
@@ -84,14 +110,34 @@ export async function fetchRecentWorksForSources(
       allWorks.push(...result.data.results);
 
       const nextCursor = result.data.meta.next_cursor;
+
       if (!nextCursor || result.data.results.length < PER_PAGE) break;
+
       cursor = nextCursor;
+
+      
+
+      // Last allowed page, and OpenAlex says there is more. Stopping here
+
+      // is correct — the budget exists for a reason — but reporting
+
+      // success would not be: the reader would see a short feed with
+
+      // nothing to indicate it had been cut off.
+
+      if (page === MAX_PAGES - 1) pageLimitHit = true;
     }
   }
 
   const articles = allWorks
     .map((work) => normalizeOpenAlexWork(work, journalIdBySourceId, journalNameByJournalId))
     .filter((article): article is Article => article !== null);
+
+  if (pageLimitHit) {
+    complete = false;
+    error ??=
+      "This watchlist returns more articles than one load can fetch. Narrowing it, or shortening the window, will show everything.";
+  }
 
   return { articles: dedupeArticles(articles), complete, error };
 }

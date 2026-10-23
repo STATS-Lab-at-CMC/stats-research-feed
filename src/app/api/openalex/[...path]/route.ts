@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
  * ## Why this exists
  *
  * As of October 2026 OpenAlex requires an API key to page past the first page
- * of results with `cursor=`. Without one, a 26-journal watchlist silently
+ * of results with `cursor=`. Without one, the default watchlist silently
  * truncates to a single page — the app's fetch is marked incomplete and the
  * reader just sees a short feed.
  *

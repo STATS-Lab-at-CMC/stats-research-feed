@@ -41,7 +41,11 @@ export function PartialResultsBanner({ reason, onRetry }: PartialResultsBannerPr
           </p>
           {reason && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium">OpenAlex said:</span> {reason}
+              {/* Neutral label: the reason is usually OpenAlex's own error text,
+                  but not always — a watchlist that exceeds the page budget
+                  produces our message, and attributing that to OpenAlex would
+                  put words in their mouth and misdirect anyone debugging it. */}
+              <span className="font-medium">Reason:</span> {reason}
             </p>
           )}
         </div>

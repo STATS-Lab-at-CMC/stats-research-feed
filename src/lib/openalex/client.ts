@@ -4,7 +4,7 @@
  * Requests go through this app's own `/api/openalex/*` route rather than
  * straight to `api.openalex.org`. That route attaches the OpenAlex API key
  * server-side — which, as of October 2026, is required to page past the first
- * page of results with `cursor=`. Without a key a 26-journal watchlist
+ * page of results with `cursor=`. Without a key the default watchlist
  * silently truncates to one page of 100.
  *
  * The key is deliberately *not* a `NEXT_PUBLIC_*` value: this is a public
