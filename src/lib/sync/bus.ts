@@ -11,10 +11,19 @@
 
 import type { Article } from "@/lib/types";
 
-/** The three pieces of state an account syncs. Caches and visit timestamps stay local. */
-export type SyncSlice = "watchlist" | "seen" | "saved";
+/**
+ * The state an account syncs. Caches and visit timestamps stay local, and so
+ * does the Zotero API key — `zoteroExports` is only the record of which
+ * articles have already been sent, never the credential that sent them.
+ */
+export type SyncSlice = "watchlist" | "seen" | "saved" | "zoteroExports";
 
-export const SYNC_SLICES: readonly SyncSlice[] = ["watchlist", "seen", "saved"] as const;
+export const SYNC_SLICES: readonly SyncSlice[] = [
+  "watchlist",
+  "seen",
+  "saved",
+  "zoteroExports",
+] as const;
 
 /**
  * A local mutation, expressed as a delta so the engine can push one row

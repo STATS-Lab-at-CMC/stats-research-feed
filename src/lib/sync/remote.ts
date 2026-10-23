@@ -35,6 +35,8 @@ export interface RemoteState {
   watchlist: string[] | null;
   seen: string[];
   saved: Article[];
+  /** Article ids already exported to Zotero. Never includes the API key. */
+  zoteroExports: string[];
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -77,10 +79,11 @@ export async function pullRemoteState(
     .eq("user_id", userId)
     .maybeSingle();
 
-  const [settings, seenRows, savedRows] = await Promise.all([
+  const [settings, seenRows, savedRows, zoteroRows] = await Promise.all([
     settingsPromise,
     selectAllPages<{ article_id: string }>(client, "seen_articles", "article_id", userId),
     selectAllPages<{ article: Article }>(client, "saved_articles", "article", userId),
+    selectAllPages<{ article_id: string }>(client, "zotero_exports", "article_id", userId),
   ]);
 
   if (settings.error) {
@@ -91,6 +94,7 @@ export async function pullRemoteState(
     watchlist: settings.data ? (settings.data.followed_journal_ids ?? []) : null,
     seen: seenRows.map((row) => row.article_id),
     saved: savedRows.map((row) => row.article).filter((article): article is Article => !!article?.id),
+    zoteroExports: zoteroRows.map((row) => row.article_id),
   };
 }
 
@@ -105,28 +109,50 @@ async function replaceWatchlist(
   if (error) throw new Error(`Could not save your watchlist: ${error.message}`);
 }
 
-async function addSeen(client: SupabaseClient, userId: string, ids: string[]): Promise<void> {
+/** Both seen_articles and zotero_exports are plain (user_id, article_id) tables. */
+async function addIds(
+  client: SupabaseClient,
+  userId: string,
+  table: string,
+  ids: string[],
+  label: string,
+): Promise<void> {
   for (const batch of chunk(ids, WRITE_CHUNK)) {
     const { error } = await client
-      .from("seen_articles")
+      .from(table)
       .upsert(
         batch.map((articleId) => ({ user_id: userId, article_id: articleId })),
         { onConflict: "user_id,article_id", ignoreDuplicates: true },
       );
-    if (error) throw new Error(`Could not save your seen articles: ${error.message}`);
+    if (error) throw new Error(`Could not save your ${label}: ${error.message}`);
   }
 }
 
-async function removeSeen(client: SupabaseClient, userId: string, ids: string[]): Promise<void> {
+async function removeIds(
+  client: SupabaseClient,
+  userId: string,
+  table: string,
+  ids: string[],
+  label: string,
+): Promise<void> {
   for (const batch of chunk(ids, WRITE_CHUNK)) {
     const { error } = await client
-      .from("seen_articles")
+      .from(table)
       .delete()
       .eq("user_id", userId)
       .in("article_id", batch);
-    if (error) throw new Error(`Could not update your seen articles: ${error.message}`);
+    if (error) throw new Error(`Could not update your ${label}: ${error.message}`);
   }
 }
+
+const addSeen = (c: SupabaseClient, u: string, ids: string[]) =>
+  addIds(c, u, "seen_articles", ids, "seen articles");
+const removeSeen = (c: SupabaseClient, u: string, ids: string[]) =>
+  removeIds(c, u, "seen_articles", ids, "seen articles");
+const addExports = (c: SupabaseClient, u: string, ids: string[]) =>
+  addIds(c, u, "zotero_exports", ids, "Zotero export history");
+const removeExports = (c: SupabaseClient, u: string, ids: string[]) =>
+  removeIds(c, u, "zotero_exports", ids, "Zotero export history");
 
 async function addSaved(client: SupabaseClient, userId: string, items: Article[]): Promise<void> {
   for (const batch of chunk(items, WRITE_CHUNK)) {
@@ -184,6 +210,13 @@ export async function pushOp(
       await deleteAll(client, userId, "saved_articles");
       if ((op.items ?? []).length > 0) await addSaved(client, userId, op.items ?? []);
       return;
+
+    case "zoteroExports":
+      if (op.kind === "add") return addExports(client, userId, op.ids);
+      if (op.kind === "remove") return removeExports(client, userId, op.ids);
+      await deleteAll(client, userId, "zotero_exports");
+      if (op.ids.length > 0) await addExports(client, userId, op.ids);
+      return;
   }
 }
 
@@ -198,11 +231,19 @@ export async function pushOp(
 export async function seedRemoteState(
   client: SupabaseClient,
   userId: string,
-  local: { watchlist: SlicePayload; seen: SlicePayload; saved: SlicePayload },
+  local: {
+    watchlist: SlicePayload;
+    seen: SlicePayload;
+    saved: SlicePayload;
+    zoteroExports: SlicePayload;
+  },
 ): Promise<void> {
   if (local.seen.ids.length > 0) await addSeen(client, userId, local.seen.ids);
   if ((local.saved.items ?? []).length > 0) {
     await addSaved(client, userId, local.saved.items ?? []);
+  }
+  if (local.zoteroExports.ids.length > 0) {
+    await addExports(client, userId, local.zoteroExports.ids);
   }
   await replaceWatchlist(client, userId, local.watchlist.ids);
 }

@@ -203,7 +203,10 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               never uploaded here and never synced to your account,
               because a Zotero key with write access can alter or delete an entire library. Your
               browser sends it directly to Zotero and nowhere else — which is also why you have to
-              enter it again on another device.
+              enter it again on another device. The record of{" "}
+              <span className="font-medium text-foreground">which</span> articles you have already
+              exported does sync, so a second device does not re-send them; that is a list of
+              article identifiers, not a credential.
             </p>
             <p>
               Clearing your browser data for this site resets the feed to a blank slate.

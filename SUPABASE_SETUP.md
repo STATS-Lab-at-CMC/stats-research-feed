@@ -23,21 +23,27 @@ Budget about 15 minutes. You need a free Supabase account.
 
 ## 2. Create the tables
 
-In the dashboard, open **SQL Editor → New query**. Paste the entire contents
-of [`supabase/migrations/0001_user_state.sql`](supabase/migrations/0001_user_state.sql)
-and press **Run**.
+In the dashboard, open **SQL Editor → New query**. Run each migration in
+[`supabase/migrations/`](supabase/migrations/) in order, pasting the whole file
+and pressing **Run**:
 
-That creates three tables and — importantly — the row-level security policies
-that make each row readable and writable only by the user it belongs to. The
-script is idempotent, so re-running it is harmless.
+1. [`0001_user_state.sql`](supabase/migrations/0001_user_state.sql) — watchlist, seen articles, saved articles
+2. [`0002_zotero_exports.sql`](supabase/migrations/0002_zotero_exports.sql) — record of what has been exported to Zotero
+
+Both are idempotent, so re-running either is harmless.
+
+Together they create four tables and — importantly — the row-level security
+policies that make each row readable and writable only by the user it belongs
+to.
 
 | Table | Holds |
 |---|---|
 | `user_settings` | One row per user: their followed journal ids. The row's existence also marks the account as initialized. |
 | `seen_articles` | One row per article marked seen. |
 | `saved_articles` | One row per bookmark, with a full snapshot of the article. |
+| `zotero_exports` | One row per article already sent to Zotero, so a second export from any device skips it. **Never stores Zotero credentials** — the API key stays in the browser that entered it. |
 
-Verify it worked: **Table Editor** should list all three, each showing an
+Verify it worked: **Table Editor** should list all four, each showing an
 "RLS enabled" badge. If any table says RLS is *disabled*, stop and re-run the
 script — without those policies every user could read every other user's rows.
 

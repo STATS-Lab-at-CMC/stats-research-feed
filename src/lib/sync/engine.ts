@@ -98,6 +98,7 @@ function snapshotAll(): Record<SyncSlice, SlicePayload> {
     watchlist: snapshotSlice("watchlist"),
     seen: snapshotSlice("seen"),
     saved: snapshotSlice("saved"),
+    zoteroExports: snapshotSlice("zoteroExports"),
   };
 }
 
@@ -286,6 +287,7 @@ async function runPull(client: SupabaseClient, userId: string): Promise<void> {
         ids: remote.saved.map((article) => article.id),
         items: remote.saved,
       });
+      getSyncableSlice("zoteroExports")?.applyRemote({ ids: remote.zoteroExports });
     }
 
     writeSyncOwner(userId);

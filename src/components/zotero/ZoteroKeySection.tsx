@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, ExternalLink, Library, Loader2 } from "lucide-react";
+import { AlertCircle, Check, ExternalLink, Library, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useZoteroKey } from "@/hooks/useZoteroKey";
@@ -24,6 +24,7 @@ export function ZoteroKeySection() {
   const zotero = useZoteroKey();
   const [keyInput, setKeyInput] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [resetting, setResetting] = useState(false);
 
   async function handleConnect(event: React.FormEvent) {
     event.preventDefault();
@@ -55,6 +56,31 @@ export function ZoteroKeySection() {
   if (zotero.isConnected) {
     return (
       <div className="space-y-2">
+        {resetting && (
+          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-sm leading-relaxed text-foreground">
+              Forget that {zotero.exportedCount}{" "}
+              {zotero.exportedCount === 1 ? "article has" : "articles have"} been exported? They
+              stay in Zotero — this only means a future export will send them again, creating
+              duplicates unless you removed them there first.
+            </p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setResetting(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  zotero.clearSentHistory();
+                  setResetting(false);
+                }}
+              >
+                Forget export history
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
           <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
             <Check className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
@@ -69,8 +95,27 @@ export function ZoteroKeySection() {
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
           Export saved articles from the <span className="font-medium text-foreground">Saved</span>{" "}
-          tab. Disconnecting removes the key from this browser; it changes nothing in Zotero.
+          tab. Disconnecting removes the key from this browser; it changes nothing in Zotero, and
+          your export history is kept so reconnecting does not re-send everything.
         </p>
+
+        {zotero.exportedCount > 0 && !resetting && (
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-muted-foreground">
+              {zotero.exportedCount} already exported
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setResetting(true)}
+              className="h-7 gap-1.5 text-xs text-muted-foreground"
+              title="Only needed when switching to a different Zotero library"
+            >
+              <RotateCcw className="h-3 w-3" aria-hidden="true" />
+              Reset
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
