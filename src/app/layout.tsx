@@ -4,7 +4,7 @@ import { AuthProvider } from "@/lib/auth/AuthProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "STATS Research Feed",
+  title: "I-O/Quant Psych Research Feed",
   description: "Your personalized research inbox for organizational and I/O psychology.",
 };
 
