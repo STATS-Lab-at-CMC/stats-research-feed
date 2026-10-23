@@ -7,8 +7,14 @@ const seenStore = createPersistedIdSetStore(STORAGE_KEYS.seenArticleIds, [], "se
 
 /** Persistent seen/unseen tracking for articles. */
 export function useSeenState() {
-  const { ids: seenArticleIds, has: isSeen, add: markSeen, remove: markUnseen, toggle: toggleSeen } =
-    seenStore.useIdSet();
+  const {
+    ids: seenArticleIds,
+    has: isSeen,
+    add: markSeen,
+    addMany: markManySeen,
+    remove: markUnseen,
+    toggle: toggleSeen,
+  } = seenStore.useIdSet();
 
-  return { seenArticleIds, isSeen, markSeen, markUnseen, toggleSeen };
+  return { seenArticleIds, isSeen, markSeen, markManySeen, markUnseen, toggleSeen };
 }

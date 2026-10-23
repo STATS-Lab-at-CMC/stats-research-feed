@@ -17,6 +17,7 @@ import { useHasMounted } from "@/hooks/useHasMounted";
 import { FirstRunNotice } from "./FirstRunNotice";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { PartialResultsBanner } from "./PartialResultsBanner";
+import { MarkAllSeenDialog } from "./MarkAllSeenDialog";
 import { ContinueBanner } from "./ContinueBanner";
 import { FeedStatusBar } from "./FeedStatusBar";
 import { FeedControls } from "./FeedControls";
@@ -57,6 +58,7 @@ export function FeedPage() {
   const [reloadToken, setReloadToken] = useState(0);
 
   const [journalManagerOpen, setJournalManagerOpen] = useState(false);
+  const [markAllSeenOpen, setMarkAllSeenOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [filters, setFilters] = useState<FeedFilterState>(DEFAULT_FILTERS);
   const [journalFilter, setJournalFilter] = useState<string>("all");
@@ -179,6 +181,36 @@ export function FeedPage() {
     );
   }, [filteredSorted, filters.sort]);
 
+  /**
+   * "Mark all seen" acts on what is currently listed, not on the whole feed.
+   * Acting on everything regardless of filters would be the more surprising
+   * of the two: someone who has filtered to one journal and clicks a button
+   * sitting beside that filter means that journal.
+   */
+  const unseenInView = useMemo(
+    () => filteredSorted.filter((article) => !seenState.seenArticleIds.has(article.id)),
+    [filteredSorted, seenState.seenArticleIds],
+  );
+
+  /** Null when the unfiltered feed is shown, so the dialog can skip the qualifier. */
+  const scopeLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (filters.seen === "saved") parts.push("your saved articles");
+    else if (filters.seen === "unseen") parts.push("unseen articles");
+    if (journalFilter !== "all") {
+      const journal = journalOptions.find((j) => j.id === journalFilter);
+      if (journal) parts.push(journal.name);
+    }
+    if (filters.openAccessOnly) parts.push("Open Access only");
+    if (filters.search.trim()) parts.push(`matching “${filters.search.trim()}”`);
+    return parts.length > 0 ? parts.join(", ") : null;
+  }, [filters, journalFilter, journalOptions]);
+
+  const handleMarkAllSeen = useCallback(() => {
+    seenState.markManySeen(unseenInView.map((article) => article.id));
+    setMarkAllSeenOpen(false);
+  }, [seenState, unseenInView]);
+
   const hasActiveFilters =
     filters.search !== "" ||
     filters.seen !== "all" ||
@@ -290,6 +322,8 @@ export function FeedPage() {
           onOpenJournalManager={() => setJournalManagerOpen(true)}
           onClearFilters={clearFilters}
           hasActiveFilters={hasActiveFilters}
+          onMarkAllSeen={() => setMarkAllSeenOpen(true)}
+          markAllSeenCount={unseenInView.length}
         />
 
         {showLoading ? (
@@ -349,6 +383,14 @@ export function FeedPage() {
         onClearAll={watchlist.clearAll}
         onRestoreDefaults={watchlist.restoreDefaults}
         unresolvedJournalIds={unresolvedJournalIds}
+      />
+
+      <MarkAllSeenDialog
+        open={markAllSeenOpen}
+        onOpenChange={setMarkAllSeenOpen}
+        count={unseenInView.length}
+        scopeLabel={scopeLabel}
+        onConfirm={handleMarkAllSeen}
       />
 
       <InfoDialog open={infoOpen} onOpenChange={setInfoOpen} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, Settings2 } from "lucide-react";
+import { Search, X, Settings2, CheckCheck } from "lucide-react";
 import type { FeedFilterState, FeedSeenFilter } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,9 @@ interface FeedControlsProps {
   onOpenJournalManager: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
+  onMarkAllSeen: () => void;
+  /** Unseen articles among those currently listed. The control hides at zero. */
+  markAllSeenCount: number;
 }
 
 const SEEN_OPTIONS: { value: FeedSeenFilter; label: string }[] = [
@@ -35,6 +38,8 @@ export function FeedControls({
   onOpenJournalManager,
   onClearFilters,
   hasActiveFilters,
+  onMarkAllSeen,
+  markAllSeenCount,
 }: FeedControlsProps) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3">
@@ -52,6 +57,20 @@ export function FeedControls({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Hidden rather than disabled when nothing is unseen: a disabled
+              control invites clicking to find out why. */}
+          {markAllSeenCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onMarkAllSeen}
+              className="gap-1.5"
+              title={`Mark ${markAllSeenCount} listed ${markAllSeenCount === 1 ? "article" : "articles"} as seen`}
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all seen
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onOpenJournalManager} className="gap-1.5">
             <Settings2 className="h-3.5 w-3.5" />
             Manage journals

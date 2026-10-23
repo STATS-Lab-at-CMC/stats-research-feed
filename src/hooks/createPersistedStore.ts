@@ -43,6 +43,7 @@ export interface IdSetStore {
     ids: Set<string>;
     has: (id: string) => boolean;
     add: (id: string) => void;
+    addMany: (ids: string[]) => void;
     remove: (id: string) => void;
     toggle: (id: string) => void;
     setAll: (ids: string[]) => void;
@@ -127,6 +128,23 @@ export function createPersistedIdSetStore(
       }
     }, []);
 
+    /**
+     * Adds many ids as a single store update and a single sync op.
+     *
+     * Calling `add` in a loop would be correct but ruinous: "mark all as seen"
+     * over a full feed would emit one op per article, and the engine pushes
+     * ops one request at a time, in order. Hundreds of sequential round trips
+     * for what the remote layer can express as a couple of batched inserts.
+     */
+    const addMany = useCallback((newIds: string[]) => {
+      const current = ensureLoaded();
+      const added = newIds.filter((id) => !current.has(id));
+      if (added.length === 0) return;
+      const next = new Set(current);
+      added.forEach((id) => next.add(id));
+      replace(next, slice && { slice, kind: "add", ids: added });
+    }, []);
+
     const remove = useCallback((id: string) => {
       const current = ensureLoaded();
       if (current.has(id)) {
@@ -153,7 +171,7 @@ export function createPersistedIdSetStore(
       replace(new Set(), slice && { slice, kind: "replace", ids: [] });
     }, []);
 
-    return { ids: value, has, add, remove, toggle, setAll, clear };
+    return { ids: value, has, add, addMany, remove, toggle, setAll, clear };
   }
 
   return { useIdSet };
