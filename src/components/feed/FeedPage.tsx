@@ -30,6 +30,8 @@ import { LoadingState } from "./LoadingState";
 import { JournalManager } from "@/components/journals/JournalManager";
 import { InfoDialog } from "@/components/info/InfoDialog";
 import { AccountButton } from "@/components/auth/AccountButton";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { useZoteroKey } from "@/hooks/useZoteroKey";
 import { Button } from "@/components/ui/button";
 
 const DEFAULT_FILTERS: FeedFilterState = {
@@ -48,6 +50,8 @@ export function FeedPage() {
   const bookmarks = useBookmarks();
   const visit = useVisitTracking();
   const firstRun = useFirstRunNotice();
+  const auth = useAuth();
+  const zotero = useZoteroKey();
 
   const hasMounted = useHasMounted();
   const allReady = hasMounted && visit.hydrated;
@@ -61,6 +65,7 @@ export function FeedPage() {
   const [journalManagerOpen, setJournalManagerOpen] = useState(false);
   const [markAllSeenOpen, setMarkAllSeenOpen] = useState(false);
   const [zoteroOpen, setZoteroOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [filters, setFilters] = useState<FeedFilterState>(DEFAULT_FILTERS);
   const [journalFilter, setJournalFilter] = useState<string>("all");
@@ -280,7 +285,7 @@ export function FeedPage() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <AccountButton />
+            <AccountButton open={accountOpen} onOpenChange={setAccountOpen} />
             <Button
               variant="ghost"
               size="sm"
@@ -315,14 +320,29 @@ export function FeedPage() {
           journalsFollowed={watchlist.followedCount}
         />
 
-        {filters.seen === "saved" && bookmarks.bookmarkedArticles.length > 0 && (
-          <div className="flex justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setZoteroOpen(true)} className="gap-1.5">
-              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-              Send to Zotero
-            </Button>
-          </div>
-        )}
+        {/*
+          Zotero export requires an account. Signed out there is no control at
+          all rather than one that explains why it cannot be used.
+
+          When signed in but not yet connected, the button says so and opens
+          the account dialog, where connecting lives — a button labelled for
+          what it will actually do beats one that opens a dead end.
+        */}
+        {filters.seen === "saved" &&
+          bookmarks.bookmarkedArticles.length > 0 &&
+          auth.status === "signedIn" && (
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => (zotero.isConnected ? setZoteroOpen(true) : setAccountOpen(true))}
+                className="gap-1.5"
+              >
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                {zotero.isConnected ? "Send to Zotero" : "Connect Zotero"}
+              </Button>
+            </div>
+          )}
 
         <FeedControls
           filters={filters}

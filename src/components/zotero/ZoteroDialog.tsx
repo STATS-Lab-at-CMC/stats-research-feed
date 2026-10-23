@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { AlertCircle, Check, ExternalLink, Loader2, Upload } from "lucide-react";
+import { AlertCircle, Loader2, Upload } from "lucide-react";
 import type { Article } from "@/lib/types";
 import {
   Dialog,
@@ -12,17 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useZoteroKey } from "@/hooks/useZoteroKey";
-import {
-  sendArticlesToZotero,
-  verifyZoteroKey,
-  type ZoteroIdentity,
-  type ZoteroSendResult,
-} from "@/lib/zotero/client";
-
-const ZOTERO_KEYS_URL = "https://www.zotero.org/settings/keys/new";
+import { sendArticlesToZotero, type ZoteroSendResult } from "@/lib/zotero/client";
 
 interface ZoteroDialogProps {
   open: boolean;
@@ -32,66 +24,35 @@ interface ZoteroDialogProps {
 
 type Phase =
   | { kind: "idle" }
-  | { kind: "verifying" }
   | { kind: "sending"; total: number }
   | { kind: "done"; result: ZoteroSendResult }
   | { kind: "error"; message: string };
 
-function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-medium text-secondary underline underline-offset-2 hover:opacity-80"
-    >
-      {children}
-    </a>
-  );
-}
-
+/**
+ * Export-only. Connecting a library lives in the account dialog, because it is
+ * a standing setting rather than a step in an export — and because asking for
+ * a credential in the middle of another task is both worse UX and a worse
+ * habit to teach.
+ *
+ * This dialog is only reachable once a library is connected, so it can use the
+ * stored identity instead of re-verifying the key on every send. A key revoked
+ * in the meantime surfaces as a 403 on the write, which is handled.
+ */
 export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialogProps) {
   const zotero = useZoteroKey();
-  const [keyInput, setKeyInput] = useState("");
-  const [identity, setIdentity] = useState<ZoteroIdentity | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
 
   const unsent = savedArticles.filter((article) => !zotero.hasSent(article.id));
   const alreadySent = savedArticles.length - unsent.length;
 
   const handleSend = useCallback(async () => {
-    const key = zotero.apiKey || keyInput.trim();
-    if (!key) return;
+    if (!zotero.identity || unsent.length === 0) return;
 
-    setPhase({ kind: "verifying" });
+    setPhase({ kind: "sending", total: unsent.length });
     try {
-      const who = await verifyZoteroKey(key);
-      setIdentity(who);
-
-      if (!who.canWrite) {
-        setPhase({
-          kind: "error",
-          message:
-            "That key can read your library but not write to it. Create a new key with “Allow write access” ticked.",
-        });
-        return;
-      }
-
-      // Only persist once Zotero has confirmed it works, so a typo is never
-      // stored and silently reused.
-      zotero.saveKey(key);
-
-      if (unsent.length === 0) {
-        setPhase({ kind: "done", result: { created: 0, failures: [] } });
-        return;
-      }
-
-      setPhase({ kind: "sending", total: unsent.length });
-      const result = await sendArticlesToZotero(key, who.userId, unsent);
-
+      const result = await sendArticlesToZotero(zotero.apiKey, zotero.identity.userId, unsent);
       const failedIds = new Set(result.failures.map((f) => f.article.id));
       zotero.markSent(unsent.filter((a) => !failedIds.has(a.id)).map((a) => a.id));
-
       setPhase({ kind: "done", result });
     } catch (error) {
       setPhase({
@@ -99,20 +60,15 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
         message: error instanceof Error ? error.message : "Could not reach Zotero.",
       });
     }
-  }, [zotero, keyInput, unsent]);
+  }, [zotero, unsent]);
 
-  const busy = phase.kind === "verifying" || phase.kind === "sending";
-
-  function reset() {
-    setPhase({ kind: "idle" });
-    setKeyInput("");
-  }
+  const sending = phase.kind === "sending";
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) reset();
+        if (!next) setPhase({ kind: "idle" });
         onOpenChange(next);
       }}
     >
@@ -130,9 +86,9 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
                   <>
                     They are in{" "}
                     <span className="font-medium text-foreground">
-                      {identity?.username ?? "your library"}
+                      {zotero.identity?.username ?? "your library"}
                     </span>
-                    , tagged “I-O/Quant Psych Research Feed”.
+                    , tagged &ldquo;I-O/Quant Psych Research Feed&rdquo;.
                   </>
                 ) : (
                   <>Every saved article has already been sent from this browser.</>
@@ -171,47 +127,13 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
             <DialogHeader>
               <DialogTitle>Send saved articles to Zotero</DialogTitle>
               <DialogDescription>
-                Adds your saved articles to your personal Zotero library as journal articles, with
-                authors, abstract, DOI, and link.
+                Adds them to{" "}
+                <span className="font-medium text-foreground">{zotero.identity?.username}</span> as
+                journal articles, with authors, abstract, DOI, and link.
               </DialogDescription>
             </DialogHeader>
 
             <Separator />
-
-            {!zotero.hasKey && (
-              <div className="space-y-2">
-                <label htmlFor="zotero-key" className="text-sm font-medium text-foreground">
-                  Zotero API key
-                </label>
-                <Input
-                  id="zotero-key"
-                  type="password"
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="Paste your key"
-                  value={keyInput}
-                  onChange={(event) => setKeyInput(event.target.value)}
-                  aria-describedby="zotero-key-hint"
-                />
-                <p id="zotero-key-hint" className="text-xs leading-relaxed text-muted-foreground">
-                  Create one at{" "}
-                  <TextLink href={ZOTERO_KEYS_URL}>zotero.org/settings/keys</TextLink> with{" "}
-                  <span className="font-medium text-foreground">Allow write access</span> ticked.
-                </p>
-              </div>
-            )}
-
-            {zotero.hasKey && (
-              <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Check className="h-4 w-4 text-secondary" aria-hidden="true" />
-                  Zotero key saved in this browser
-                </span>
-                <Button variant="ghost" size="sm" onClick={zotero.forgetKey} disabled={busy}>
-                  Remove
-                </Button>
-              </div>
-            )}
 
             <div className="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
               <p>
@@ -222,8 +144,8 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
                 {alreadySent > 0 && <> — {alreadySent} already sent from this browser</>}.
               </p>
               <p className="text-xs">
-                Your key is stored only in this browser. It is never uploaded to this site or synced
-                to your account, so you will need to enter it again on another device.
+                Items arrive tagged &ldquo;I-O/Quant Psych Research Feed&rdquo;, so they are easy to
+                find or remove in bulk later.
               </p>
             </div>
 
@@ -238,21 +160,14 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
             )}
 
             <DialogFooter className="sm:justify-between">
-              <Button variant="ghost" asChild>
-                <a href={ZOTERO_KEYS_URL} target="_blank" rel="noopener noreferrer" className="gap-1.5">
-                  Get a key
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
+              <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={sending}>
+                Cancel
               </Button>
-              <Button
-                onClick={() => void handleSend()}
-                disabled={busy || (!zotero.hasKey && keyInput.trim().length === 0)}
-                className="gap-1.5"
-              >
-                {busy ? (
+              <Button onClick={() => void handleSend()} disabled={sending || unsent.length === 0} className="gap-1.5">
+                {sending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    {phase.kind === "verifying" ? "Checking key…" : `Sending ${phase.total}…`}
+                    Sending {phase.total}…
                   </>
                 ) : (
                   <>

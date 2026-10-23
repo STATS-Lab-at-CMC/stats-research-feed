@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { ZoteroKeySection } from "@/components/zotero/ZoteroKeySection";
 
 interface AccountDialogProps {
   open: boolean;
@@ -282,6 +283,17 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
       <Separator />
 
       <WhatSyncs />
+
+      <Separator />
+
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground">Zotero</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Connect a Zotero library to export your saved articles into it as proper journal-article
+          references, with authors, abstract, DOI, and link.
+        </p>
+        <ZoteroKeySection />
+      </section>
 
       {confirmingSignOut ? (
         <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3">

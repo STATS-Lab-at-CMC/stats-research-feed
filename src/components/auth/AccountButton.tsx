@@ -15,9 +15,22 @@ import { AccountDialog } from "./AccountDialog";
  * does not exist, and a button that only explains its own absence is worse
  * than no button.
  */
-export function AccountButton() {
+interface AccountButtonProps {
+  /**
+   * Lets the dialog be opened from elsewhere — the Saved view routes here when
+   * someone wants Zotero export but has not connected a library yet. Optional,
+   * so the button still works standalone.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function AccountButton({ open: openProp, onOpenChange }: AccountButtonProps = {}) {
   const { status, email, sync } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [openLocal, setOpenLocal] = useState(false);
+
+  const open = openProp ?? openLocal;
+  const setOpen = onOpenChange ?? setOpenLocal;
 
   if (status === "unknown" || status === "unconfigured") return null;
 

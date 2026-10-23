@@ -30,6 +30,8 @@ export const STORAGE_KEYS = {
    * api.zotero.org.
    */
   zoteroApiKey: "stats-feed:zotero-api-key",
+  /** Which Zotero account the stored key belongs to, so the account panel can say so without a round trip. */
+  zoteroIdentity: "stats-feed:zotero-identity",
   /** Article ids already pushed to Zotero from this browser, to avoid re-sending. */
   zoteroSentArticleIds: "stats-feed:zotero-sent-article-ids",
 } as const;
