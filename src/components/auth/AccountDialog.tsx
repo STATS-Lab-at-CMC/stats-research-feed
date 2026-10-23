@@ -33,6 +33,11 @@ function formatLastSynced(ms: number | null): string {
   return new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+/**
+ * Shown to someone who is already signed in: the complete list of what leaves
+ * this browser, including the Zotero bookkeeping and the explicit note that
+ * the key is not part of it.
+ */
 function WhatSyncs() {
   return (
     <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
@@ -55,6 +60,38 @@ function WhatSyncs() {
         <span className="font-medium text-foreground">Your Zotero API key is not included.</span>{" "}
         Only the list of what was sent is stored — the key itself never leaves the browser you
         typed it into.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Shown before signing in, where the job is different: say what an account is
+ * *for*, not catalogue what it stores.
+ *
+ * It deliberately omits the Zotero key caveat that the signed-in version
+ * carries. Someone who has no account has no key and nowhere to put one, so
+ * reassurance about how that key is handled reads as a reference to a feature
+ * that does not appear anywhere on screen.
+ */
+function WhyAnAccount() {
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
+      <p>An account carries these between your devices:</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>The journals on your watchlist</li>
+        <li>Which articles you have marked seen</li>
+        <li>Your saved articles</li>
+      </ul>
+      <p>
+        <span className="font-medium text-foreground">It also unlocks Zotero export.</span> Send
+        your saved articles straight into your Zotero library as proper references — authors,
+        abstract, DOI, link, and a full-text PDF where one is freely available. You can connect a
+        library from this menu once you are signed in.
+      </p>
+      <p>
+        Nothing else is uploaded: your searches, filters, and cached article data stay in this
+        browser, exactly as they do now.
       </p>
     </div>
   );
@@ -139,8 +176,8 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
       <DialogHeader>
         <DialogTitle>Sign in to sync your feed</DialogTitle>
         <DialogDescription>
-          Optional. The feed works fully without an account — an account just lets your watchlist
-          and reading history follow you to another device.
+          Optional. The feed works fully without one — an account lets your watchlist and reading
+          history follow you to another device, and unlocks sending saved articles to Zotero.
         </DialogDescription>
       </DialogHeader>
 
@@ -193,7 +230,7 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
 
       <Separator />
 
-      <WhatSyncs />
+      <WhyAnAccount />
 
       <p className="text-sm leading-relaxed text-muted-foreground">
         If you already have a watchlist and reading history in this browser, signing in for the
