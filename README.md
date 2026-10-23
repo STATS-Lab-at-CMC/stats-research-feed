@@ -38,7 +38,8 @@ Inspired by [Kayla Walters' I/O psychology journal
 feed](https://kayla-walters.github.io/io-psych-journal-feed/research_feed.html);
 no code from it was used or adapted.
 
-Early pilot version built by Yanqiao Mo.
+Early demo version built by Amy Mo ([@yanqiao2007](https://github.com/yanqiao2007)), an undergraduate research
+assistant in the STATS Lab, as part of her work in the lab.
 
 ---
 
