@@ -99,6 +99,7 @@ function snapshotAll(): Record<SyncSlice, SlicePayload> {
     saved: snapshotSlice("saved"),
     zoteroExports: snapshotSlice("zoteroExports"),
     customJournals: snapshotSlice("customJournals"),
+    keywords: snapshotSlice("keywords"),
   };
 }
 
@@ -198,8 +199,12 @@ function enqueue(op: SyncOp): void {
  * cannot disagree with what the user sees.
  */
 function normalizeOp(op: SyncOp): SyncOp {
-  if (op.slice !== "watchlist") return op;
-  return { slice: "watchlist", kind: "replace", ids: snapshotSlice("watchlist").ids };
+  // Both of these are single array columns on user_settings, so every change
+  // becomes a whole-value write taken from current local state: idempotent,
+  // and a flurry of edits collapses into writes that cannot disagree with
+  // what the user sees.
+  if (op.slice !== "watchlist" && op.slice !== "keywords") return op;
+  return { slice: op.slice, kind: "replace", ids: snapshotSlice(op.slice).ids };
 }
 
 async function drain(): Promise<void> {
@@ -291,6 +296,7 @@ async function runPull(client: SupabaseClient, userId: string): Promise<void> {
         items: remote.saved,
       });
       getSyncableSlice("zoteroExports")?.applyRemote({ ids: remote.zoteroExports });
+      getSyncableSlice("keywords")?.applyRemote({ ids: remote.keywords });
       getSyncableSlice("customJournals")?.applyRemote({
         ids: remote.customJournals.map((journal) => journal.id),
         items: remote.customJournals,

@@ -1,0 +1,78 @@
+import type { Article } from "@/lib/types";
+
+/**
+ * Matching saved keywords against article text.
+ *
+ * Matches on word boundaries rather than bare substrings, because the terms a
+ * researcher actually saves are the ones substring matching ruins: "calling"
+ * would hit every "recalling", "fit" every "benefit", "AI" every "said" and
+ * "maintain". Multi-word phrases ("leader emergence") work unchanged, since
+ * the boundaries sit at the ends of the whole phrase.
+ */
+
+/** Escapes a user-supplied term so it cannot alter the regex it is placed in. */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * `\b` is defined in terms of `\w`, so it fails where a term starts or ends
+ * with punctuation — "p-hacking" or "COVID-19" would never match. Falling back
+ * to a lookaround on word characters keeps those working.
+ */
+function termPattern(term: string): string {
+  const escaped = escapeRegex(term.trim());
+  const startsWithWord = /^\w/.test(term.trim());
+  const endsWithWord = /\w$/.test(term.trim());
+  return `${startsWithWord ? "(?<!\\w)" : ""}${escaped}${endsWithWord ? "(?!\\w)" : ""}`;
+}
+
+/** One regex for all terms, so a long keyword list is still a single pass. */
+export function buildKeywordPattern(keywords: string[]): RegExp | null {
+  const terms = keywords.map((term) => term.trim()).filter(Boolean);
+  if (terms.length === 0) return null;
+  // Longest first, so "leader emergence" wins over "leader" at the same spot.
+  const sorted = [...terms].sort((a, b) => b.length - a.length);
+  return new RegExp(`(${sorted.map(termPattern).join("|")})`, "gi");
+}
+
+/**
+ * Which of an article's fields a keyword hit, if any.
+ *
+ * Title and abstract only. Author names are excluded deliberately: a term like
+ * "Lee" or "Wang" would match constantly and drown the signal, and following a
+ * person is a different feature from following a topic.
+ */
+export function articleMatchesKeywords(article: Article, pattern: RegExp | null): boolean {
+  if (!pattern) return false;
+  // A /g regex carries lastIndex between calls, which makes repeated .test()
+  // on the same instance skip matches. Reset before each article.
+  pattern.lastIndex = 0;
+  if (pattern.test(article.title)) return true;
+  pattern.lastIndex = 0;
+  return article.abstract ? pattern.test(article.abstract) : false;
+}
+
+export interface TextSegment {
+  text: string;
+  match: boolean;
+}
+
+/** Splits text into alternating plain and matched runs, for rendering. */
+export function segmentByKeywords(text: string, pattern: RegExp | null): TextSegment[] {
+  if (!pattern || !text) return [{ text, match: false }];
+
+  const segments: TextSegment[] = [];
+  let lastIndex = 0;
+  pattern.lastIndex = 0;
+
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    if (start > lastIndex) segments.push({ text: text.slice(lastIndex, start), match: false });
+    segments.push({ text: match[0], match: true });
+    lastIndex = start + match[0].length;
+  }
+
+  if (lastIndex < text.length) segments.push({ text: text.slice(lastIndex), match: false });
+  return segments.length > 0 ? segments : [{ text, match: false }];
+}

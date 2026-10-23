@@ -6,10 +6,13 @@ import type { Article } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatApaCitation } from "@/lib/citation/apa";
+import { HighlightedText } from "./HighlightedText";
 import { formatPublicationDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
 interface ArticleCardProps {
+  /** Compiled keyword regex, or null when highlighting is off. */
+  highlightPattern?: RegExp | null;
   article: Article;
   isSeen: boolean;
   isNew: boolean;
@@ -88,6 +91,7 @@ export function ArticleCard({
   onToggleSeen,
   onToggleBookmark,
   isContinueTarget = false,
+  highlightPattern,
 }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -131,10 +135,10 @@ export function ArticleCard({
             rel="noopener noreferrer"
             className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
           >
-            {article.title}
+            <HighlightedText text={article.title} pattern={highlightPattern ?? null} />
           </a>
         ) : (
-          article.title
+          <HighlightedText text={article.title} pattern={highlightPattern ?? null} />
         )}
       </h3>
 
@@ -144,7 +148,7 @@ export function ArticleCard({
         {article.abstract ? (
           <>
             <p className={cn("text-sm text-foreground/80", !expanded && "line-clamp-2")}>
-              {article.abstract}
+              <HighlightedText text={article.abstract} pattern={highlightPattern ?? null} />
             </p>
             <button
               type="button"

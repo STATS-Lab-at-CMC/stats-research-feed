@@ -29,6 +29,10 @@ export const STORAGE_KEYS = {
    * library, so it stays in the browser that entered it and travels only to
    * api.zotero.org.
    */
+  /** Terms the reader watches for. Synced — see useKeywords. */
+  keywords: "stats-feed:keywords",
+  /** Whether to highlight keyword matches in the feed. Not synced: a display preference. */
+  highlightKeywords: "stats-feed:highlight-keywords",
   /** Theme preference: "system" | "light" | "dark". Not synced — see useTheme. */
   theme: "stats-feed:theme",
   /**

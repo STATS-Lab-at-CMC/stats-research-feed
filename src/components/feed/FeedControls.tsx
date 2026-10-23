@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, Settings2, CheckCheck } from "lucide-react";
+import { Search, X, Settings2, CheckCheck, Tag } from "lucide-react";
 import type { FeedFilterState, FeedSeenFilter } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,11 @@ interface FeedControlsProps {
   onMarkAllSeen: () => void;
   /** Unseen articles among those currently listed. The control hides at zero. */
   markAllSeenCount: number;
+  onOpenKeywords: () => void;
+  keywordCount: number;
+  /** Only shown once keywords exist — a filter for nothing is just a dead switch. */
+  keywordsOnly: boolean;
+  onKeywordsOnlyChange: (next: boolean) => void;
 }
 
 const SEEN_OPTIONS: { value: FeedSeenFilter; label: string }[] = [
@@ -40,6 +45,10 @@ export function FeedControls({
   hasActiveFilters,
   onMarkAllSeen,
   markAllSeenCount,
+  onOpenKeywords,
+  keywordCount,
+  keywordsOnly,
+  onKeywordsOnlyChange,
 }: FeedControlsProps) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3">
@@ -71,6 +80,15 @@ export function FeedControls({
               Mark all seen
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={onOpenKeywords} className="gap-1.5">
+            <Tag className="h-3.5 w-3.5" />
+            Keywords
+            {keywordCount > 0 && (
+              <span className="rounded bg-muted px-1 text-[11px] font-semibold text-foreground">
+                {keywordCount}
+              </span>
+            )}
+          </Button>
           <Button variant="outline" size="sm" onClick={onOpenJournalManager} className="gap-1.5">
             <Settings2 className="h-3.5 w-3.5" />
             Manage journals
@@ -135,6 +153,17 @@ export function FeedControls({
             <option value="oldest">Oldest first</option>
           </select>
         </label>
+
+        {keywordCount > 0 && (
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <Switch
+              checked={keywordsOnly}
+              onCheckedChange={onKeywordsOnlyChange}
+              aria-label="Show only articles matching your keywords"
+            />
+            Keyword matches only
+          </label>
+        )}
 
         <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Switch

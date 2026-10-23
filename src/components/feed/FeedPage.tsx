@@ -8,6 +8,7 @@ import { useCustomJournals } from "@/hooks/useCustomJournals";
 import { useWatchlistDefaultsMigration } from "@/hooks/useWatchlistDefaultsMigration";
 import { getFeedArticles } from "@/lib/openalex/feed";
 import { getContinueState } from "@/lib/feed/continueTarget";
+import { articleMatchesKeywords } from "@/lib/keywords/match";
 import { parseDateMs, recencyBucket, RECENCY_BUCKET_LABELS, type RecencyBucket } from "@/lib/utils/date";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { useSeenState } from "@/hooks/useSeenState";
@@ -20,6 +21,8 @@ import { FirstRunNotice } from "./FirstRunNotice";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { PartialResultsBanner } from "./PartialResultsBanner";
 import { MarkAllSeenDialog } from "./MarkAllSeenDialog";
+import { KeywordsDialog } from "./KeywordsDialog";
+import { useKeywords } from "@/hooks/useKeywords";
 import { ZoteroDialog } from "@/components/zotero/ZoteroDialog";
 import { ContinueBanner } from "./ContinueBanner";
 import { FeedStatusBar } from "./FeedStatusBar";
@@ -56,6 +59,7 @@ export function FeedPage() {
   const firstRun = useFirstRunNotice();
   const zotero = useZoteroKey();
   const journalLibrary = useCustomJournals();
+  const keywords = useKeywords();
 
   const hasMounted = useHasMounted();
   const allReady = hasMounted && visit.hydrated;
@@ -90,6 +94,8 @@ export function FeedPage() {
   const [markAllSeenOpen, setMarkAllSeenOpen] = useState(false);
   const [zoteroOpen, setZoteroOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [keywordsOpen, setKeywordsOpen] = useState(false);
+  const [keywordsOnly, setKeywordsOnly] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [filters, setFilters] = useState<FeedFilterState>(DEFAULT_FILTERS);
   const [journalFilter, setJournalFilter] = useState<string>("all");
@@ -193,6 +199,12 @@ export function FeedPage() {
 
     if (journalFilter !== "all") list = list.filter((a) => a.journalId === journalFilter);
     if (filters.openAccessOnly) list = list.filter((a) => a.isOpenAccess === true);
+    // Independent of highlighting: you can filter to matches with highlighting
+    // off, and vice versa, so `pattern` is used here rather than
+    // `highlightPattern`.
+    if (keywordsOnly && keywords.pattern) {
+      list = list.filter((a) => articleMatchesKeywords(a, keywords.pattern));
+    }
 
     const q = filters.search.trim().toLowerCase();
     if (q) {
@@ -210,7 +222,15 @@ export function FeedPage() {
       const bMs = parseDateMs(b.publicationDate) ?? -Infinity;
       return filters.sort === "newest" ? bMs - aMs : aMs - bMs;
     });
-  }, [articles, bookmarks.bookmarkedArticles, journalFilter, filters, seenState.seenArticleIds]);
+  }, [
+    articles,
+    bookmarks.bookmarkedArticles,
+    journalFilter,
+    filters,
+    seenState.seenArticleIds,
+    keywordsOnly,
+    keywords.pattern,
+  ]);
 
   const groupedEntries = useMemo(() => {
     const buckets: Record<RecencyBucket, Article[]> = {
@@ -279,6 +299,15 @@ export function FeedPage() {
     seenState.markManySeen(unseenInView.map((article) => article.id));
     setMarkAllSeenOpen(false);
   }, [seenState, unseenInView]);
+
+  const keywordMatchCount = useMemo(
+    () =>
+      keywords.pattern
+        ? filteredSorted.filter((article) => articleMatchesKeywords(article, keywords.pattern))
+            .length
+        : 0,
+    [filteredSorted, keywords.pattern],
+  );
 
   const hasActiveFilters =
     filters.search !== "" ||
@@ -418,6 +447,10 @@ export function FeedPage() {
           hasActiveFilters={hasActiveFilters}
           onMarkAllSeen={() => setMarkAllSeenOpen(true)}
           markAllSeenCount={unseenInView.length}
+          onOpenKeywords={() => setKeywordsOpen(true)}
+          keywordCount={keywords.keywords.length}
+          keywordsOnly={keywordsOnly}
+          onKeywordsOnlyChange={setKeywordsOnly}
         />
 
         {showLoading ? (
@@ -458,6 +491,7 @@ export function FeedPage() {
                       onToggleSeen={() => seenState.toggleSeen(article.id)}
                       onToggleBookmark={() => bookmarks.toggleBookmark(article)}
                       isContinueTarget={highlightedArticleId === article.id}
+                      highlightPattern={keywords.highlightPattern}
                     />
                   ))}
                 </div>
@@ -479,6 +513,12 @@ export function FeedPage() {
         unresolvedJournalIds={unresolvedJournalIds}
         onAddJournal={handleAddJournal}
         onRemoveJournal={handleRemoveJournal}
+      />
+
+      <KeywordsDialog
+        open={keywordsOpen}
+        onOpenChange={setKeywordsOpen}
+        matchCount={keywordMatchCount}
       />
 
       <MarkAllSeenDialog

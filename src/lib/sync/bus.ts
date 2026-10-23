@@ -19,7 +19,8 @@ export type SyncSlice =
   | "seen"
   | "saved"
   | "zoteroExports"
-  | "customJournals";
+  | "customJournals"
+  | "keywords";
 
 export const SYNC_SLICES: readonly SyncSlice[] = [
   "watchlist",
@@ -27,6 +28,7 @@ export const SYNC_SLICES: readonly SyncSlice[] = [
   "saved",
   "zoteroExports",
   "customJournals",
+  "keywords",
 ] as const;
 
 /**

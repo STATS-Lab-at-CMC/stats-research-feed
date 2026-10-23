@@ -40,6 +40,8 @@ export interface RemoteState {
   zoteroExports: string[];
   /** Journals the user added themselves, beyond the built-in catalog. */
   customJournals: JournalDefinition[];
+  /** Terms the user watches for. */
+  keywords: string[];
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -78,7 +80,7 @@ export async function pullRemoteState(
 ): Promise<RemoteState> {
   const settingsPromise = client
     .from("user_settings")
-    .select("followed_journal_ids")
+    .select("followed_journal_ids, keywords")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -99,6 +101,7 @@ export async function pullRemoteState(
     seen: seenRows.map((row) => row.article_id),
     saved: savedRows.map((row) => row.article).filter((article): article is Article => !!article?.id),
     zoteroExports: zoteroRows.map((row) => row.article_id),
+    keywords: settings.data?.keywords ?? [],
     customJournals: journalRows
       .map((row) => row.journal)
       .filter((journal): journal is JournalDefinition => !!journal?.id),
@@ -182,6 +185,22 @@ async function removeSaved(client: SupabaseClient, userId: string, ids: string[]
   }
 }
 
+/**
+ * Keywords live alongside the watchlist on `user_settings`. The upsert names
+ * only this column, so it cannot clobber `followed_journal_ids` if both slices
+ * flush at once.
+ */
+async function replaceKeywords(
+  client: SupabaseClient,
+  userId: string,
+  keywords: string[],
+): Promise<void> {
+  const { error } = await client
+    .from("user_settings")
+    .upsert({ user_id: userId, keywords }, { onConflict: "user_id" });
+  if (error) throw new Error(`Could not save your keywords: ${error.message}`);
+}
+
 async function addCustomJournals(
   client: SupabaseClient,
   userId: string,
@@ -249,6 +268,11 @@ export async function pushOp(
       return;
     }
 
+    case "keywords":
+      // Normalized to a whole-value replace by the engine, like the watchlist.
+      await replaceKeywords(client, userId, op.ids);
+      return;
+
     case "customJournals": {
       const journals = (op.items ?? []) as JournalDefinition[];
       if (op.kind === "add") return addCustomJournals(client, userId, journals);
@@ -284,6 +308,7 @@ export async function seedRemoteState(
     saved: SlicePayload;
     zoteroExports: SlicePayload;
     customJournals: SlicePayload;
+    keywords: SlicePayload;
   },
 ): Promise<void> {
   if (local.seen.ids.length > 0) await addSeen(client, userId, local.seen.ids);
@@ -293,6 +318,7 @@ export async function seedRemoteState(
   if (local.zoteroExports.ids.length > 0) {
     await addExports(client, userId, local.zoteroExports.ids);
   }
+  if (local.keywords.ids.length > 0) await replaceKeywords(client, userId, local.keywords.ids);
   const localJournals = (local.customJournals.items ?? []) as JournalDefinition[];
   if (localJournals.length > 0) await addCustomJournals(client, userId, localJournals);
   await replaceWatchlist(client, userId, local.watchlist.ids);

@@ -30,6 +30,7 @@ and pressing **Run**:
 1. [`0001_user_state.sql`](supabase/migrations/0001_user_state.sql) — watchlist, seen articles, saved articles
 2. [`0002_zotero_exports.sql`](supabase/migrations/0002_zotero_exports.sql) — record of what has been exported to Zotero
 3. [`0003_custom_journals.sql`](supabase/migrations/0003_custom_journals.sql) — journals added beyond the built-in catalog
+4. [`0004_keywords.sql`](supabase/migrations/0004_keywords.sql) — saved keywords (adds a column to `user_settings`)
 
 Both are idempotent, so re-running either is harmless.
 

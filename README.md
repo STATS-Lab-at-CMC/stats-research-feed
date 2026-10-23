@@ -102,6 +102,28 @@ always reachable, and scrolls straight to it.
 
 ---
 
+### Keywords
+
+Save terms you follow — a construct, a method, a phenomenon — and they are
+highlighted wherever they appear in titles and abstracts, with an optional
+filter down to just the articles that match. Empty by default: keywords are
+specific to someone's own research, and a starting set would be guessing at
+their field.
+
+Matching is on **word boundaries**, not substrings, because the terms
+researchers actually save are the ones substring matching ruins. On the live
+feed, "calling" as a substring hits 5 places; three are the construct and two
+are "recalling". Terms with punctuation still work (`p-hacking`, `COVID-19`,
+`C++`), and longer phrases win over shorter ones at the same position, so
+"leader emergence" is highlighted as a phrase rather than as "leader".
+
+Author names are excluded on purpose — "Lee" or "Wang" would match constantly,
+and following a person is a different feature from following a topic.
+
+The terms sync with your account; whether to *highlight* them stays on the
+device, like the theme. Highlighting and filtering are independent: you can
+filter to matches with highlighting off, or highlight without filtering.
+
 ### Clearing a backlog
 
 **Mark all seen** acts on whatever is currently listed, not the whole feed —
