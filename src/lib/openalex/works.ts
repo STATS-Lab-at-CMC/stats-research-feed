@@ -6,7 +6,7 @@ const PER_PAGE = 100;
 const MAX_PAGES = 8; // caps requests at 8 even for a very active 90-day window across 26 journals
 const SOURCE_ID_CHUNK_SIZE = 40; // keeps the OR filter well under URL length limits
 const WORK_SELECT_FIELDS =
-  "id,doi,title,display_name,publication_date,authorships,primary_location,open_access,abstract_inverted_index,type,is_retracted";
+  "id,doi,title,display_name,publication_date,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index,type,is_retracted";
 
 /**
  * Publication-quality filter, applied server-side. Verified against

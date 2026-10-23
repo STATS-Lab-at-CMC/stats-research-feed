@@ -188,6 +188,9 @@ export function getDemoArticles(): Article[] {
     abstract: seed.abstract,
     doi: seed.doi,
     articleUrl: null,
+    // Demo data links nowhere on purpose — a fabricated PDF link would be
+    // worse than none, since the banner already says this is sample data.
+    pdfUrl: null,
     source: "demo",
   }));
 }

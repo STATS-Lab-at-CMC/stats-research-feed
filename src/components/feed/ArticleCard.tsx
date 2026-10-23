@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Circle, ExternalLink, FileText } from "lucide-react";
 import type { Article } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,6 +163,23 @@ export function ArticleCard({
             </a>
           ) : (
             <span>Link unavailable</span>
+          )}
+          {/*
+            Only shown when OpenAlex gives a direct PDF address for a freely
+            readable copy — roughly a quarter of articles in practice. A link
+            that lands on a paywall would be worse than no link, so this never
+            falls back to a landing page.
+          */}
+          {article.pdfUrl && (
+            <a
+              href={article.pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-secondary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              title="Free full-text PDF"
+            >
+              PDF <FileText className="h-3.5 w-3.5" />
+            </a>
           )}
         </div>
       </div>

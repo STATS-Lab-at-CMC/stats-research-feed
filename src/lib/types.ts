@@ -19,6 +19,13 @@ export interface Article {
   doi: string | null;
   /** Best available link to the article itself (DOI resolver preferred). */
   articleUrl: string | null;
+  /**
+   * Direct link to a legally-hosted full-text PDF, from OpenAlex's
+   * `best_oa_location`. Null for paywalled work, and also for roughly half of
+   * open-access work — OpenAlex often knows a free copy exists without
+   * knowing a direct PDF address for it.
+   */
+  pdfUrl: string | null;
   source: "openalex" | "demo";
 }
 

@@ -44,6 +44,7 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
 
   const unsent = savedArticles.filter((article) => !zotero.hasSent(article.id));
   const alreadySent = savedArticles.length - unsent.length;
+  const pdfCount = unsent.filter((article) => article.pdfUrl).length;
 
   const handleSend = useCallback(async () => {
     if (!zotero.identity || unsent.length === 0) return;
@@ -88,7 +89,17 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
                     <span className="font-medium text-foreground">
                       {zotero.identity?.username ?? "your library"}
                     </span>
-                    , tagged &ldquo;I-O/Quant Psych Research Feed&rdquo;.
+                    , tagged &ldquo;I-O/Quant Psych Research Feed&rdquo;
+                    {phase.result.pdfsLinked > 0 && (
+                      <>
+                        , with{" "}
+                        <span className="font-medium text-foreground">
+                          {phase.result.pdfsLinked}
+                        </span>{" "}
+                        full-text PDF {phase.result.pdfsLinked === 1 ? "link" : "links"} attached
+                      </>
+                    )}
+                    .
                   </>
                 ) : (
                   <>Every saved article has already been sent from this browser.</>
@@ -147,6 +158,13 @@ export function ZoteroDialog({ open, onOpenChange, savedArticles }: ZoteroDialog
                 Items arrive tagged &ldquo;I-O/Quant Psych Research Feed&rdquo;, so they are easy to
                 find or remove in bulk later.
               </p>
+              {pdfCount > 0 && (
+                <p className="text-xs">
+                  {pdfCount} of them {pdfCount === 1 ? "has" : "have"} a free full-text PDF, which
+                  will be attached as a link on the Zotero item. The file itself stays with the
+                  publisher, so it uses none of your Zotero storage.
+                </p>
+              )}
             </div>
 
             {phase.kind === "error" && (

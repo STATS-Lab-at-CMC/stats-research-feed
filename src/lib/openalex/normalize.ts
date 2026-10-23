@@ -94,6 +94,15 @@ export function normalizeOpenAlexWork(
       doiToUrl(doi) ??
       safeExternalUrl(work.primary_location?.landing_page_url) ??
       safeExternalUrl(work.id),
+    /**
+     * `best_oa_location` is OpenAlex's pick of the best freely-readable copy,
+     * which may be the publisher or a repository. Only its `pdf_url` is taken:
+     * its landing page is often the same page `articleUrl` already points at,
+     * so offering it as a second link would promise a PDF and deliver a
+     * paywall. Passed through `safeExternalUrl` like every other upstream
+     * link, since this ends up in an href.
+     */
+    pdfUrl: safeExternalUrl(work.best_oa_location?.pdf_url),
     source: "openalex",
   };
 }

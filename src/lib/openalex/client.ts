@@ -140,6 +140,8 @@ export interface OpenAlexLocation {
   source?: { id?: string | null; display_name?: string | null } | null;
   landing_page_url?: string | null;
   is_oa?: boolean | null;
+  /** Direct PDF address, when OpenAlex knows one. Frequently absent even for OA work. */
+  pdf_url?: string | null;
 }
 
 export interface OpenAlexWorkRecord {
@@ -150,6 +152,8 @@ export interface OpenAlexWorkRecord {
   publication_date?: string | null;
   authorships?: OpenAlexAuthorship[] | null;
   primary_location?: OpenAlexLocation | null;
+  /** OpenAlex's pick of the best freely-readable copy, wherever it lives. */
+  best_oa_location?: OpenAlexLocation | null;
   open_access?: { is_oa?: boolean | null } | null;
   abstract_inverted_index?: Record<string, number[]> | null;
   /**

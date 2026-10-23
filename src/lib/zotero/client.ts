@@ -34,6 +34,8 @@ export interface ZoteroIdentity {
 
 export interface ZoteroSendResult {
   created: number;
+  /** Child PDF links successfully attached to created items. */
+  pdfsLinked: number;
   /** Articles Zotero refused, with its reason. */
   failures: { article: Article; reason: string }[];
 }
@@ -145,6 +147,38 @@ export function toZoteroItem(article: Article): ZoteroJournalArticle {
   };
 }
 
+interface ZoteroLinkedAttachment {
+  itemType: "attachment";
+  parentItem: string;
+  linkMode: "linked_url";
+  title: string;
+  url: string;
+  accessDate: string;
+  contentType: string;
+}
+
+/**
+ * A child item pointing at the open-access PDF.
+ *
+ * Deliberately a *link*, not a stored file. Storing the file would mean
+ * fetching it server-side (publishers send no CORS headers, so the browser
+ * cannot), spending the user's Zotero storage quota, and routing every PDF
+ * through this app's bandwidth — for a copy of something already one click
+ * away. The cost is that it does not work offline and breaks if the publisher
+ * moves the URL.
+ */
+function toPdfAttachment(parentKey: string, article: Article): ZoteroLinkedAttachment {
+  return {
+    itemType: "attachment",
+    parentItem: parentKey,
+    linkMode: "linked_url",
+    title: "Full text PDF",
+    url: article.pdfUrl!,
+    accessDate: new Date().toISOString().slice(0, 10),
+    contentType: "application/pdf",
+  };
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -164,6 +198,7 @@ export async function sendArticlesToZotero(
   articles: Article[],
 ): Promise<ZoteroSendResult> {
   let created = 0;
+  let pdfsLinked = 0;
   const failures: ZoteroSendResult["failures"] = [];
 
   for (const batch of chunk(articles, MAX_ITEMS_PER_REQUEST)) {
@@ -202,7 +237,54 @@ export async function sendArticlesToZotero(
       const article = batch[Number(index)];
       if (article) failures.push({ article, reason: detail?.message ?? "Zotero rejected this item." });
     }
+
+    // Attach PDF links to whichever parents actually landed. Zotero keys its
+    // response by the item's index within the batch, which is how each new
+    // key is matched back to the article that produced it.
+    const attachments: ZoteroLinkedAttachment[] = [];
+    for (const [index, saved] of Object.entries(body.successful ?? {})) {
+      const article = batch[Number(index)];
+      const parentKey = (saved as { key?: string })?.key;
+      if (article?.pdfUrl && parentKey) attachments.push(toPdfAttachment(parentKey, article));
+    }
+
+    pdfsLinked += await attachPdfLinks(apiKey, userId, attachments);
   }
 
-  return { created, failures };
+  return { created, pdfsLinked, failures };
+}
+
+/**
+ * Attachments are posted after their parents, in their own request, because
+ * `parentItem` has to reference a key that already exists.
+ *
+ * A failure here is swallowed on purpose: the reference itself is already
+ * safely in Zotero, and turning "the PDF link did not attach" into a failed
+ * export would be a worse outcome than quietly having one fewer link. The
+ * count is returned so the UI can report what actually happened.
+ */
+async function attachPdfLinks(
+  apiKey: string,
+  userId: number,
+  attachments: ZoteroLinkedAttachment[],
+): Promise<number> {
+  let linked = 0;
+  for (const batch of chunk(attachments, MAX_ITEMS_PER_REQUEST)) {
+    try {
+      const response = await withTimeout((signal) =>
+        fetch(`${ZOTERO_BASE_URL}/users/${userId}/items`, {
+          method: "POST",
+          headers: headers(apiKey),
+          body: JSON.stringify(batch),
+          signal,
+        }),
+      );
+      if (!response.ok) continue;
+      const body = (await response.json()) as { successful?: Record<string, unknown> };
+      linked += Object.keys(body.successful ?? {}).length;
+    } catch {
+      // See above: never let a missing PDF link fail an otherwise good export.
+    }
+  }
+  return linked;
 }
