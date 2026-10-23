@@ -1,13 +1,16 @@
-# STATS Research Feed
+# I-O/Quant Psych Research Feed
 
-**Your personalized research inbox.**
+**Your personalized research inbox, built by the STATS Lab at CMC.**
 
-A research productivity tool for organizational and I/O psychology
-researchers. It pulls recent publications from a set of journals you choose,
-and — unlike a plain RSS reader — it remembers what you've already seen, so
-you can pick up exactly where you left off the next time you check in.
+A research productivity tool for industrial-organizational and quantitative
+psychology researchers. It pulls recent publications from a set of journals you
+choose, and — unlike a plain RSS reader — it remembers what you've already
+seen, so you can pick up exactly where you left off the next time you check in.
 
-Built for the STATS Lab at CMC.
+Optionally, it syncs that across your devices and exports what you save
+straight into Zotero.
+
+Live at **[stats-lab-research-feed.vercel.app](https://stats-lab-research-feed.vercel.app)**.
 
 ---
 
@@ -19,7 +22,7 @@ that a research professor identified:
 **1. "Where did I leave off?"**
 Researchers check a feed sporadically — maybe once a week, maybe once a
 month. When you come back, you shouldn't have to re-skim everything you've
-already read to figure out what's new. STATS Research Feed tracks, in your
+already read to figure out what's new. This feed tracks, in your
 browser, which articles you've seen, which are new since your last visit,
 and roughly where you stopped scrolling — then gives you a one-click
 **"Continue where you left off"** to jump back there.
@@ -89,20 +92,80 @@ always reachable, and scrolls straight to it.
 
 ---
 
+### Clearing a backlog
+
+**Mark all seen** acts on whatever is currently listed, not the whole feed —
+if you have filtered to one journal, that is what it marks. A confirmation
+names the exact count and spells out the active filters ("Journal of Applied
+Psychology, matching 'leadership'"), because the real risk is not misclicking
+the button but not noticing a filter is on. There is no undo, and the dialog
+says so.
+
+### Open-access PDFs
+
+Where OpenAlex knows a direct address for a freely readable copy, article cards
+show a **PDF** link beside "Open article". Only `best_oa_location.pdf_url` is
+used, never its landing page — that is usually the same URL "Open article"
+already points at, so labelling it "PDF" would promise a file and sometimes
+deliver a paywall.
+
+In practice this covers about a quarter of the feed: of 318 recent articles
+across the 26 journals, 159 were open access but only 90 had a direct PDF
+address. OpenAlex often knows a free copy exists without knowing where the file
+itself is.
+
+### Zotero export
+
+Signed-in users can connect a Zotero library from the account menu and push
+their saved articles into it as proper `journalArticle` references — authors,
+abstract, DOI, date, journal, and link, all from fields the app already has.
+Items arrive tagged **I-O/Quant Psych Research Feed**, so they are easy to find
+or remove in bulk later. Where an open-access PDF address is known, it is
+attached to the item as a linked-URL child.
+
+**The API key never touches this app's server.** `api.zotero.org` sends
+`Access-Control-Allow-Origin: *` and permits the `Zotero-API-Key` header, so
+the browser posts to Zotero directly. The key is stored only in the browser
+that entered it, is never written to Supabase, and is not part of the synced
+state — a Zotero key with write access can alter or delete an entire library,
+and holding other people's is a liability better avoided than mitigated. That
+guarantee is structural: the key uses `createPersistedValueStore`, whose
+signature has no sync-slice parameter, so it cannot join sync even by mistake.
+
+**What does sync is the record of what was exported** — a list of article ids,
+not a credential — so exporting from a second device does not create
+duplicates. Disconnecting keeps that record (reconnecting the same library
+should not re-send everything); switching to a genuinely different library has
+an explicit **Reset** control.
+
+PDFs are attached as links rather than stored files. Storing them would mean
+fetching each one server-side, since publishers send no CORS headers, which
+would spend the user's Zotero storage quota, route every file through this
+app's bandwidth, and fetch dozens of PDFs from publishers via a single IP.
+Checking the links showed why that last part matters: SAGE and Taylor & Francis
+answer automated requests with a Cloudflare bot check that a person clicking
+from the feed passes transparently.
+
 ## Architecture
 
 ```
 src/
-  app/                    Next.js App Router entry (layout, page, global CSS)
+  app/
+    page.tsx, layout.tsx  App Router entry + global CSS
+    api/openalex/         Server-side proxy that attaches the OpenAlex key
+    auth/confirm/         Where the magic-link email lands
   components/
     ui/                   Small hand-built shadcn/ui-style primitives
                            (Button, Card, Dialog, Checkbox, Switch, …)
     feed/                 Feed-specific UI (ArticleCard, FeedControls,
                            FeedStatusBar, empty/loading/error states, …)
-    journals/              Journal watchlist management dialog
-  hooks/                  React hooks: watchlist, seen state, bookmarks,
-                           visit tracking, first-run notice
+    journals/             Journal watchlist management dialog
     auth/                 Sign-in dialog + header account button
+    zotero/               Connect-library section (in the account dialog)
+                           and the export dialog
+    info/                 The About panel
+  hooks/                  React hooks: watchlist, seen state, bookmarks,
+                           visit tracking, first-run notice, Zotero key
   lib/
     auth/AuthProvider.tsx Auth context: session state, magic link, sign-out
     supabase/client.ts    Browser Supabase client (null when unconfigured)
@@ -110,6 +173,9 @@ src/
                            the Supabase data layer, and the engine that
                            seeds/pulls/pushes — the ONLY place that talks
                            to Supabase tables
+    zotero/client.ts      Zotero Web API v3 — the ONLY place that talks to
+                           Zotero, and the only place the user's Zotero key
+                           is ever read
     journals/catalog.ts   The static journal catalog (name + ISSNs)
     feed/continueTarget.ts Pure function deriving the "Continue where you
                            left off" target from articles + seen state
@@ -122,8 +188,8 @@ src/
     utils/                 Date formatting, text sanitization, cn() helper
 ```
 
-The guiding rule: **UI components never call OpenAlex or `localStorage`
-directly.** They call hooks (`useWatchlist`, `useSeenState`, …) or the
+The guiding rule: **UI components never call OpenAlex, Supabase, Zotero, or
+`localStorage` directly.** They call hooks (`useWatchlist`, `useSeenState`, …) or the
 `getFeedArticles()` function from `lib/openalex/feed.ts`. That keeps the
 data-fetching and persistence logic centralized, testable, and swappable.
 
@@ -137,7 +203,10 @@ data-fetching and persistence logic centralized, testable, and swappable.
   (`@radix-ui/react-dialog`, `-checkbox`, `-switch`, `-separator`) — no
   heavyweight component library
 - **React hooks + `useSyncExternalStore`** for state — no Redux/Zustand/etc.
-- **OpenAlex** as the live research metadata source (see below)
+- **OpenAlex** as the live research metadata source (see below), behind a
+  server-side proxy that holds the API key
+- **Zotero Web API v3** for reference export, called directly from the browser
+  so the user's key never reaches this app's server
 - **Supabase** (Postgres + Auth) for the *optional* account layer — magic-link
   sign-in and cross-device sync. Entirely opt-in at both the deployment level
   (no env vars → no accounts) and the user level (no sign-in → no server)
@@ -239,12 +308,17 @@ npm install
 npm run dev
 ```
 
-Then open [http://localhost:3000](http://localhost:3000). No environment
-variables, API keys, or accounts are required — it works immediately.
+Then open [http://localhost:3000](http://localhost:3000). It runs with no
+configuration at all, but two optional environment variables matter (see
+[`.env.example`](.env.example)):
 
-To additionally turn on optional accounts, follow
-[`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) (about 15 minutes). Without it the
-app simply renders no sign-in UI and makes no calls to anything but OpenAlex.
+| Variable | Without it |
+|---|---|
+| `OPENALEX_API_KEY` | The feed caps at the first 100 results, with a banner saying so. OpenAlex gates cursor paging behind a key, so this is **strongly recommended** — it is free and takes a minute. Note there is no `NEXT_PUBLIC_` prefix: it is read server-side only. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `..._ANON_KEY` | No accounts, no cross-device sync, and no Zotero export (which is account-gated). Everything else works, saved in the browser. |
+
+Turning on accounts takes about 15 minutes — see
+[`SUPABASE_SETUP.md`](SUPABASE_SETUP.md).
 
 Other useful commands:
 
@@ -254,14 +328,22 @@ npm run start   # run the production build locally
 npm run lint    # ESLint
 ```
 
-> **Verification status (Oct 2026):** the two earlier build sessions ran in
-> sandboxes with no outbound network access, so neither `npm run build` nor a
-> live OpenAlex request had ever actually been exercised. Both have now been
-> run successfully on a normal connection: `npm run build`, `npm run lint`,
-> and `npx tsc --noEmit` all pass, and a cold load retrieved **339 real
-> articles across all 26 journals** from `api.openalex.org` with no demo
-> fallback and no unresolved journals. The Supabase account layer's own
-> verification status is noted in the section below.
+> **Verification status (Oct 2026).** Everything below was exercised against
+> live services, not mocks: `npm run build`, `npm run lint` and
+> `npx tsc --noEmit` pass; a cold load retrieves the full feed from
+> `api.openalex.org` with no demo fallback and no unresolved journals; the
+> Supabase migrations are applied and row-level security is confirmed enforced
+> on all four tables (an anonymous write is rejected by Postgres, not just by
+> the browser); the
+> magic-link sign-in completes end to end and seeds a new account from local
+> state; and the Zotero field mapping is checked against Zotero's own
+> `journalArticle` template, which rejects unknown fields.
+>
+> **Not verified:** a successful Zotero write. That needs a real
+> write-capable key, which belongs to the user rather than in a test. The
+> failure paths — invalid key, read-only key — were exercised against the live
+> API and behave correctly, and the key is confirmed absent from the HTML and
+> every JS chunk.
 
 ## How local persistence works
 
@@ -281,6 +363,8 @@ See `src/lib/storage/localStorageAdapter.ts` and
   article stays viewable in the **Saved** tab even if you later unfollow
   its journal or it ages out of the 90-day feed window
 - Whether you've dismissed the first-run notice
+- Your Zotero API key, if you connected one — **this one never syncs and never
+  leaves the browser**, unlike everything else in this list
 - Which account the synced state belongs to, when signed in (so one person's
   local state can never be pushed up into another person's new account on a
   shared machine)
@@ -316,6 +400,8 @@ row-level security policies live in
 | Followed journals | Yes | Real curation effort; the main thing worth carrying between devices |
 | Seen article ids | Yes | The feature the app exists for — "where did I leave off" should survive a change of machine |
 | Saved articles (full snapshots) | Yes | Same reasoning, and the snapshot keeps them readable after a journal is unfollowed |
+| Which articles went to Zotero | Yes | Bookkeeping, not a credential. Kept per-browser it was useless: a second device re-exported everything |
+| **Zotero API key** | **No** | **Can alter or delete an entire library. Stays in the browser that entered it, travels only to api.zotero.org** |
 | Previous-visit timestamps | No | Genuinely per-device: "new since your last visit" means your last visit *here* |
 | OpenAlex source/works caches | No | Disposable performance data with a 20-minute/24-hour TTL. Syncing them would add write traffic and staleness bugs for no benefit |
 
@@ -349,7 +435,15 @@ lib/sync/bus.ts                 Dependency-free seam between the two (no
 lib/sync/remote.ts              Every Supabase table query, and nothing else
 lib/sync/engine.ts              Seed/pull/push orchestration + write queue
 lib/auth/AuthProvider.tsx       Session state and the magic-link call
+lib/zotero/client.ts            Zotero API; the only reader of the key
 ```
+
+Schema and row-level security policies live in
+[`supabase/migrations/`](supabase/migrations/) — run both files. Auth email
+templates are in [`supabase/email-templates/`](supabase/email-templates/) and
+are **not optional for institutional email**: the stock Supabase template links
+through an endpoint that university mail scanners consume before the reader
+clicks. Full setup in [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md).
 
 The same containment rule as the OpenAlex layer applies: UI components never
 touch Supabase directly.
@@ -386,6 +480,20 @@ touch Supabase directly.
   paging behind a key. The app detects this and shows a "showing only part of
   your feed" banner carrying OpenAlex's own explanation, rather than silently
   serving a short feed as it did before Oct 2026.
+- **Zotero export is one-way and account-gated.** It pushes saved articles to
+  Zotero and never reads back, so anything deleted in Zotero is not noticed,
+  and the app will not re-send it (the export record says it already went).
+  The **Reset** control in the account menu is the way out of that.
+- **The Zotero key is per-browser by design.** Signing in on a new device
+  brings your watchlist and export history across, but still asks for the key.
+  That asymmetry is deliberate, not an oversight.
+- **Author names split on the final space**, which is what most Zotero
+  importers do. "Jan van der Berg" comes through imperfectly. Every heuristic
+  here trades one class of error for another.
+- **PDF links cover about a quarter of the feed** — OpenAlex often knows a free
+  copy exists without knowing a direct PDF address. Publisher-hosted links may
+  show a brief Cloudflare check before the file; repository-hosted ones load
+  directly.
 - **Topic filtering was intentionally not built.** OpenAlex's topic/concept
   metadata isn't reliably populated for every work, and the brief explicitly
   said not to sacrifice core functionality for it.
@@ -429,8 +537,11 @@ To enable accounts on a deployment, add `NEXT_PUBLIC_SUPABASE_URL` and
 origin's `/auth/confirm` to Supabase's redirect allowlist — see
 [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) step 6.
 
-## Roadmap ideas beyond V1
+## Roadmap ideas
 
 - Optional email/weekly-digest summaries of new articles
 - Author-level or topic-level following, once OpenAlex's topic metadata is
   reliably populated across these journals
+- Choosing a destination Zotero collection, rather than the library root
+- Checking Zotero for an existing item by DOI before export, which would also
+  catch items added by Zotero's own browser connector
