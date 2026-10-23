@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -72,9 +73,13 @@ export default function ConfirmPage() {
     client.auth
       .verifyOtp({
         token_hash: tokenHash,
-        // `email` covers magic links and signup confirmations alike; the
-        // template chooses which `type` it sends.
-        type: (readParam("type") as "email" | "magiclink" | "recovery" | null) ?? "email",
+        /**
+         * Whichever flow the template was written for. A first-time reader
+         * gets "signup" (Supabase sends Confirm signup, not Magic Link, when
+         * no account exists yet); a returning one gets "magiclink". Falling
+         * back to "email" keeps an un-typed link working.
+         */
+        type: (readParam("type") as EmailOtpType | null) ?? "email",
       })
       .then(({ error }) => {
         if (cancelled) return;
