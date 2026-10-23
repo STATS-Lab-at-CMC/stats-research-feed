@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
 import { createPersistedValueStore } from "./createPersistedStore";
 
 /**
- * Light / dark / follow-the-system.
+ * Light / dark, starting from the system preference.
  *
  * Deliberately **not** synced. A theme is a property of the device you are
  * reading on — a laptop in a bright office and a phone at night want different
@@ -29,8 +29,36 @@ function applyTheme(preference: ThemePreference) {
   else root.setAttribute("data-theme", preference);
 }
 
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+/**
+ * The OS preference, read through `useSyncExternalStore` rather than an
+ * effect — it is an external system React should subscribe to, not state to
+ * mirror. Also means the control updates live if the OS flips at sunset with
+ * the page open.
+ */
+function subscribeToSystemTheme(onChange: () => void) {
+  const query = window.matchMedia(DARK_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function getSystemSnapshot(): boolean {
+  return window.matchMedia(DARK_QUERY).matches;
+}
+
+/** The server cannot know; the real value arrives immediately after hydration. */
+function getSystemServerSnapshot(): boolean {
+  return false;
+}
+
 export function useTheme() {
   const [preference, setPreference] = themeStore.useValue();
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemSnapshot,
+    getSystemServerSnapshot,
+  );
 
   // Syncing an external system (the document element) with React state is
   // exactly what an effect is for.
@@ -48,10 +76,25 @@ export function useTheme() {
     [setPreference],
   );
 
-  /** Cycles light → dark → system, which keeps one control doing all three. */
-  const cycleTheme = useCallback(() => {
-    setTheme(preference === "light" ? "dark" : preference === "dark" ? "system" : "light");
-  }, [preference, setTheme]);
+  /** What is actually on screen right now, with "system" resolved. */
+  const resolvedTheme: "light" | "dark" =
+    preference === "system" ? (systemDark ? "dark" : "light") : preference;
 
-  return { theme: preference, setTheme, cycleTheme };
+  /**
+   * Flips to the opposite of what is currently *showing*, not the opposite of
+   * what is stored.
+   *
+   * Those differ on the first click: the default is "system", so a cycle
+   * through light → dark → system meant someone on a light OS clicked once and
+   * saw nothing change, because "system" and "light" looked identical. One
+   * click now always changes the screen.
+   *
+   * "system" survives as the starting state and stops applying once a choice
+   * is made, which is the usual bargain — follow the OS until told otherwise.
+   */
+  const toggleTheme = useCallback(() => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  }, [resolvedTheme, setTheme]);
+
+  return { theme: preference, resolvedTheme, setTheme, toggleTheme };
 }

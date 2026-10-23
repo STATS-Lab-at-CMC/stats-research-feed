@@ -1,50 +1,40 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHasMounted } from "@/hooks/useHasMounted";
-import { useTheme, type ThemePreference } from "@/hooks/useTheme";
-
-const NEXT_LABEL: Record<ThemePreference, string> = {
-  light: "Switch to dark theme",
-  dark: "Match system theme",
-  system: "Switch to light theme",
-};
-
-const CURRENT_LABEL: Record<ThemePreference, string> = {
-  light: "Light",
-  dark: "Dark",
-  system: "System",
-};
+import { useTheme } from "@/hooks/useTheme";
 
 /**
- * One control cycling light → dark → system.
+ * One click, one visible change.
  *
- * A cycle rather than a binary toggle because "follow the system" is a real
- * third answer, not the absence of a choice — someone whose OS flips at sunset
- * wants the app to follow, and a two-state toggle silently takes that away the
- * first time it is touched.
+ * The icon shows what the click will *do* rather than what is currently on —
+ * a moon while reading in light, a sun while reading in dark — which matches
+ * the "Toggle" verb in the label and means the control always previews its own
+ * effect.
  *
- * Renders nothing until mounted: the active theme lives in localStorage, so
- * the server cannot know which icon is correct, and guessing would mean
- * showing a sun to someone in dark mode for one frame.
+ * Renders nothing until mounted: the active theme lives in localStorage and in
+ * the OS preference, neither of which the server can see, so any guess would
+ * show the wrong icon for a frame.
  */
 export function ThemeToggle() {
   const hasMounted = useHasMounted();
-  const { theme, cycleTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
 
   if (!hasMounted) return null;
 
-  const Icon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
+  const isDark = resolvedTheme === "dark";
+  const Icon = isDark ? Sun : Moon;
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={cycleTheme}
+      onClick={toggleTheme}
       className="h-8 w-8 shrink-0 text-muted-foreground"
-      title={`Theme: ${CURRENT_LABEL[theme]}. ${NEXT_LABEL[theme]}.`}
-      aria-label={`Theme: ${CURRENT_LABEL[theme]}. ${NEXT_LABEL[theme]}.`}
+      title="Toggle Dark Mode"
+      aria-label={`Toggle dark mode (currently ${isDark ? "dark" : "light"})`}
+      aria-pressed={isDark}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
     </Button>

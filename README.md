@@ -113,10 +113,11 @@ says so.
 
 ### Light and dark
 
-A single header control cycles **light → dark → system**, defaulting to system.
-It is a cycle rather than a binary toggle because "follow the OS" is a real
-third answer, and a two-state toggle silently removes it the first time it is
-touched.
+A header control toggles between light and dark in one click. It flips the
+opposite of what is currently *showing*, not of what is stored — which matters
+because the starting state is "follow the OS": a reader on a light OS would
+otherwise click once and see nothing change, since "system" and "light" look
+identical. Following the OS remains the default until the control is touched.
 
 The theme is deliberately **not** synced to the account: it is a property of
 the device you are reading on, and the OS already knows the right answer there.
