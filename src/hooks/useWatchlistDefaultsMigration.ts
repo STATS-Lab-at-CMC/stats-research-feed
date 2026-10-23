@@ -23,7 +23,14 @@ import { createPersistedValueStore } from "./createPersistedStore";
  * leave in place; it can be deleted once no browser is plausibly still on an
  * older version.
  */
-const WATCHLIST_DEFAULTS_VERSION = 2;
+/**
+ * 3, not 2, because version 2 shipped with a broken gate: it ran before auth
+ * had resolved, so for signed-in readers the reset was applied locally,
+ * pushed nothing, and was overwritten by the cloud pull — while still
+ * recording itself as done. Bumping is the only way to re-run for browsers
+ * carrying that marker.
+ */
+const WATCHLIST_DEFAULTS_VERSION = 3;
 
 const versionStore = createPersistedValueStore<number>(
   STORAGE_KEYS.watchlistDefaultsVersion,

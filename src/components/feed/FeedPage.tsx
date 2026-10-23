@@ -61,11 +61,20 @@ export function FeedPage() {
 
   /**
    * The watchlist is only final once any cloud pull has landed — for a
-   * signed-in reader the pull overwrites it, so a reset run beforehand would
-   * be silently undone while still recording itself as done.
+   * signed-in reader the pull overwrites it, so a reset run beforehand is
+   * silently undone while still recording itself as done.
+   *
+   * `"unknown"` has to be excluded explicitly, and missing that is what broke
+   * the first attempt: it is the pre-hydration status, so `status !==
+   * "signedIn"` is true on the very first render for signed-in and signed-out
+   * readers alike. The gate opened before Supabase had resolved the session,
+   * and before the sync engine had installed its op handler — so the reset
+   * applied locally, pushed nothing, and was then overwritten by the pull.
    */
+  const authResolved = auth.status !== "unknown";
   const watchlistSettled =
     allReady &&
+    authResolved &&
     (auth.status !== "signedIn" || auth.sync.status === "synced" || auth.sync.status === "error");
 
   useWatchlistDefaultsMigration(watchlistSettled, watchlist.restoreDefaults);
