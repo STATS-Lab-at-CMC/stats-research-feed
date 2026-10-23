@@ -76,23 +76,42 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
         <DialogHeader>
           <DialogTitle>Check your email</DialogTitle>
           <DialogDescription>
-            A sign-in link is on its way to{" "}
+            A sign-in link was requested for{" "}
             <span className="font-medium text-foreground">{email.trim()}</span>.
           </DialogDescription>
         </DialogHeader>
 
         <Separator />
 
+        {/*
+          Deliberately says "requested", not "sent".
+          The server accepts the request and returns success *before* the
+          message is handed to a mail provider, so a delivery failure happens
+          after this screen is already showing. The app genuinely cannot know
+          whether the mail went out, and claiming it did turns a
+          misconfiguration into an invisible one — which is exactly what
+          happened on first setup, when the built-in sender silently refused
+          an address that was not on the project's team.
+        */}
         <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
             Open it and you will land back here, signed in. The link works once and expires after an
             hour.
           </p>
-          <p>
-            Nothing arrived? Check your spam folder. Institutional mail filters sometimes hold
-            automated sign-in mail, and some scanners follow the link before you do, which uses it
-            up — if that happens, request a new one.
-          </p>
+          <p className="font-medium text-foreground">If nothing arrives within a few minutes:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Check your spam or quarantine folder — institutional filters often hold automated
+              sign-in mail.</li>
+            <li>
+              Some mail scanners follow links before you do, which uses up a one-time link. Request
+              another.
+            </li>
+            <li>
+              If this site was set up recently, its mail provider may not be configured yet. Until
+              one is, sign-in emails can be silently dropped no matter what this screen says — the
+              site&apos;s operator can confirm in their auth logs.
+            </li>
+          </ul>
         </div>
 
         <DialogFooter className="sm:justify-between">
