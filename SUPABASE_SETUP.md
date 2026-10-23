@@ -121,27 +121,47 @@ which is a perfectly reasonable thing to do for a public demo.
 
 ---
 
-## Optional: harden the sign-in link
+## Replace the email templates (not optional for institutional email)
 
-By default the app uses Supabase's unmodified magic-link email, which works
-immediately and — usefully — works even when someone requests the link on
-their laptop and opens it on their phone. The trade-off is that the session
-arrives in the URL fragment.
+Supabase's default templates link to `{{ .ConfirmationURL }}`, which points at
+its `/auth/v1/verify` endpoint. That endpoint redeems the one-time token on
+**any** GET request — including one made by a mail security scanner.
 
-If you would rather the link carry a single-use hash and no access token, edit
-**Authentication → Emails → Magic Link** and replace the link with:
+This is not hypothetical. On this project's first real sign-in, a `cmc.edu`
+address held the message for four minutes before delivery, and the link was
+already spent by the time a human clicked it: "Email link is invalid or has
+expired", on a link nobody had used. University mail systems scan inbound
+links as a matter of course, so expect this wherever your readers are.
 
-```html
-<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink">
-  Sign in to STATS Research Feed
-</a>
-```
+Paste the two templates in
+[`supabase/email-templates/`](supabase/email-templates/) into
+**Authentication → Emails → Templates**. They link to the app's own
+`/auth/confirm` page carrying `{{ .TokenHash }}`, which redeems the token by
+calling `verifyOtp` in the browser — so fetching the URL does nothing and
+scanners, which do not run JavaScript, leave it intact.
 
-No code change is needed — `src/app/auth/confirm/page.tsx` already handles
-both link shapes. Test it before relying on it; a typo in the template breaks
-sign-in for everyone.
+**Update both tabs.** Confirm signup is what a first-time reader gets;
+Magic Link is only used once an account exists. Changing just one and testing
+with a fresh address will look like nothing happened.
 
----
+They also carry the lab's name and branding, explain what the feed is, and
+give a contact address — which matters, because the stock template reads like
+phishing to anyone who was not expecting it.
+
+## A note on Reply-To
+
+Supabase has no Reply-To setting. Its SMTP configuration covers sender
+address, sender name, and credentials, and nothing else — so a reply goes to
+whatever the sender address is.
+
+Two ways to handle that:
+
+- **Put a contact address in the template body.** Both templates here link to
+  `info@statslabatcmc.com`. Costs nothing, and works today.
+- **Send from an address that is a real mailbox.** Set the sender to the
+  address you want replies at. This needs that address's domain verified in
+  Resend — the apex `statslabatcmc.com` is a different domain from the
+  already-verified `mail.statslabatcmc.com`, so it needs adding separately.
 
 ## Checking it actually works
 
