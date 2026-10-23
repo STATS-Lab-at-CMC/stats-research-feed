@@ -103,6 +103,11 @@ export function normalizeOpenAlexWork(
      * link, since this ends up in an href.
      */
     pdfUrl: safeExternalUrl(work.best_oa_location?.pdf_url),
+    volume: cleanText(work.biblio?.volume),
+    issue: cleanText(work.biblio?.issue),
+    firstPage: cleanText(work.biblio?.first_page),
+    lastPage: cleanText(work.biblio?.last_page),
+    publicationYear: work.publication_year ?? null,
     source: "openalex",
   };
 }

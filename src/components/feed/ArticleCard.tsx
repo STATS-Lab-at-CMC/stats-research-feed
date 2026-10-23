@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Bookmark, BookmarkCheck, CheckCircle2, ChevronDown, ChevronUp, Circle, ExternalLink, FileText } from "lucide-react";
+import { Bookmark, BookmarkCheck, Check, CheckCircle2, ChevronDown, ChevronUp, Circle, ExternalLink, FileText, Quote } from "lucide-react";
 import type { Article } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatApaCitation } from "@/lib/citation/apa";
 import { formatPublicationDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
@@ -22,6 +23,61 @@ function formatAuthors(authors: string[]): string {
   if (authors.length === 0) return "Authors not available";
   if (authors.length <= 6) return authors.join(", ");
   return `${authors.slice(0, 6).join(", ")}, et al.`;
+}
+
+/**
+ * Copies an APA 7th-edition reference for one article.
+ *
+ * Writes the clipboard in two flavours at once: HTML carrying the italics APA
+ * requires on the journal name and volume, and plain text for anywhere that
+ * cannot take them. Pasting into Word or Google Docs therefore arrives already
+ * formatted, while a plain-text field still gets something sensible.
+ * `ClipboardItem` is not universally available, so a plain-text write is kept
+ * as a fallback rather than letting the copy fail outright.
+ */
+function CiteButton({ article }: { article: Article }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    const citation = formatApaCitation(article);
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([citation.html], { type: "text/html" }),
+            "text/plain": new Blob([citation.text], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(citation.text);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard permission denied or unavailable; leave the label unchanged
+      // rather than claiming a copy that did not happen.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleCopy()}
+      className="inline-flex items-center gap-1 rounded-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      title="Copy an APA 7 reference for this article"
+      aria-label={`Copy APA citation for ${article.title}`}
+    >
+      {copied ? (
+        <>
+          Copied <Check className="h-3.5 w-3.5 text-secondary" aria-hidden="true" />
+        </>
+      ) : (
+        <>
+          Cite <Quote className="h-3.5 w-3.5" aria-hidden="true" />
+        </>
+      )}
+    </button>
+  );
 }
 
 export function ArticleCard({
@@ -170,6 +226,7 @@ export function ArticleCard({
             that lands on a paywall would be worse than no link, so this never
             falls back to a landing page.
           */}
+          <CiteButton article={article} />
           {article.pdfUrl && (
             <a
               href={article.pdfUrl}

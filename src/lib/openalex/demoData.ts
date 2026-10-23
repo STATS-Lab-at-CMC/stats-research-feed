@@ -191,6 +191,11 @@ export function getDemoArticles(): Article[] {
     // Demo data links nowhere on purpose — a fabricated PDF link would be
     // worse than none, since the banner already says this is sample data.
     pdfUrl: null,
+    volume: null,
+    issue: null,
+    firstPage: null,
+    lastPage: null,
+    publicationYear: null,
     source: "demo",
   }));
 }

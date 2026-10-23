@@ -26,6 +26,19 @@ export interface Article {
    * knowing a direct PDF address for it.
    */
   pdfUrl: string | null;
+  /**
+   * Bibliographic detail, for building a citation. Frequently absent: only
+   * about 38% of recent articles have a volume, because the rest are advance
+   * online publications that have not been assigned to an issue yet. APA has
+   * a distinct reference form for exactly that case, so absence here is a
+   * meaningful signal rather than missing data.
+   */
+  volume: string | null;
+  issue: string | null;
+  firstPage: string | null;
+  lastPage: string | null;
+  /** OpenAlex's own publication year, which can differ from `publicationDate`'s. */
+  publicationYear: number | null;
   source: "openalex" | "demo";
 }
 

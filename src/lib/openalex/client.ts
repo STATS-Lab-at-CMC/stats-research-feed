@@ -171,6 +171,14 @@ export interface OpenAlexWorkRecord {
    * *notice* document itself, not the retracted original work.
    */
   is_retracted?: boolean | null;
+  /** Volume/issue/pages. Often empty for advance online publications. */
+  biblio?: {
+    volume?: string | null;
+    issue?: string | null;
+    first_page?: string | null;
+    last_page?: string | null;
+  } | null;
+  publication_year?: number | null;
 }
 
 export interface OpenAlexListResponse<T> {

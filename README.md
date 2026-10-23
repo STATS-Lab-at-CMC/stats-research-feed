@@ -111,6 +111,25 @@ Psychology, matching 'leadership'"), because the real risk is not misclicking
 the button but not noticing a filter is on. There is no undo, and the dialog
 says so.
 
+### Copying a citation
+
+Every article card has a **Cite** button that copies an APA 7th-edition
+reference. It writes the clipboard in two flavours at once — HTML carrying the
+italics APA requires on the journal name and volume, and plain text — so
+pasting into Word or Google Docs arrives already formatted while a plain-text
+field still gets something sensible.
+
+It handles the forms that actually come up: standard volume(issue), pages;
+**Advance online publication** for the ~59% of recent articles with no volume
+yet, which is APA's own form for that case rather than a gap; `Article #####`
+for publisher e-locations; `(n.d.)` for undated work; and the 21-or-more
+authors rule (first 19, ellipsis, final author, no ampersand).
+
+One thing it deliberately does not do is force the article title into sentence
+case. OpenAlex returns a mix of title and sentence case, and mechanically
+lowercasing would destroy proper nouns and acronyms — "Generative AI" becoming
+"generative ai" is a worse error than casing a reader can see and fix.
+
 ### Open-access PDFs
 
 Where OpenAlex knows a direct address for a freely readable copy, article cards
