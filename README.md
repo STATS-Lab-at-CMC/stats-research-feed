@@ -32,15 +32,13 @@ change any time — your choices persist and immediately reshape the feed.
 Everything else in the app (search, filters, sorting, abstracts, open-access
 badges) exists in service of those two goals.
 
-## Inspiration
+## Acknowledgements
 
-This project was inspired by [Kayla Walters' public I/O psychology journal
-feed](https://kayla-walters.github.io/io-psych-journal-feed/research_feed.html),
-a great demonstration of what a lightweight literature feed can look like.
-**No code from that project was used or adapted** — STATS Research Feed is
-an independent implementation, built from scratch with its own data layer,
-persistence model, and design system, specifically to add the seen/unseen
-and watchlist-customization features described above.
+Inspired by [Kayla Walters' I/O psychology journal
+feed](https://kayla-walters.github.io/io-psych-journal-feed/research_feed.html);
+no code from it was used or adapted.
+
+Early pilot version built by Yanqiao Mo.
 
 ---
 
