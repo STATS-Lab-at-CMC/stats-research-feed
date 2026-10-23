@@ -147,11 +147,11 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
             ) : signedIn ? (
               <>
                 <p>
-                  You are signed in, so three things are stored in the STATS Lab&apos;s database (a{" "}
+                  You are signed in, so four things are stored in the STATS Lab&apos;s database (a{" "}
                   <TextLink href={SUPABASE_URL}>Supabase</TextLink> Postgres instance):{" "}
                   <span className="font-medium text-foreground">
-                    your journal watchlist, the article identifiers you have marked seen, and your
-                    saved articles
+                    your journal watchlist, the article identifiers you have marked seen, your
+                    saved articles, and which articles you have exported to Zotero
                   </span>
                   , alongside the email address you signed in with. That is the entire point of an
                   account — it is what lets this feed follow you to another computer.
@@ -177,10 +177,10 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
                 </p>
                 <p>
                   An account is available but entirely optional. If you create one, your watchlist,
-                  seen articles, and saved articles are stored in the STATS Lab&apos;s database so
-                  they follow you between devices — nothing else is, and you can read the details
-                  here again once signed in. The app contains no analytics, tracking scripts, or
-                  third-party embeds either way.
+                  seen articles, saved articles, and a record of which articles you have exported to
+                  Zotero are stored in the STATS Lab&apos;s database so they follow you between
+                  devices — nothing else is, and you can read the details here again once signed in.
+                  The app contains no analytics, tracking scripts, or third-party embeds either way.
                 </p>
               </>
             )}
@@ -198,16 +198,30 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               to the publisher, visible to them like any other visit.
             </p>
             <p>
-              <span className="font-medium text-foreground">Zotero:</span> if you connect a Zotero
-              API key to export your saved articles, that key is held in this browser alone. It is
-              never uploaded here and never synced to your account,
-              because a Zotero key with write access can alter or delete an entire library. Your
-              browser sends it directly to Zotero and nowhere else — which is also why you have to
-              enter it again on another device. The record of{" "}
-              <span className="font-medium text-foreground">which</span> articles you have already
-              exported does sync, so a second device does not re-send them; that is a list of
-              article identifiers, not a credential.
+              <span className="font-medium text-foreground">Zotero.</span> If you connect a Zotero
+              library to export saved articles, two different things are handled two different
+              ways, deliberately.
             </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                <span className="font-medium text-foreground">
+                  Your API key is never stored here.
+                </span>{" "}
+                It stays in the browser you typed it into and goes directly to Zotero — not to this
+                site, not to the database, not to your account. A Zotero key with write access can
+                alter or delete an entire library, so it is not ours to hold. That is also why
+                another device asks for it again.
+              </li>
+              <li>
+                <span className="font-medium text-foreground">
+                  A record of what you sent is stored.
+                </span>{" "}
+                Your account keeps the list of which articles have already gone to Zotero, so
+                exporting from a second device does not duplicate them. That list is article
+                identifiers and nothing more: it records that a paper was exported, not anything
+                about your Zotero library or what is in it.
+              </li>
+            </ul>
             <p>
               Clearing your browser data for this site resets the feed to a blank slate.
               {signedIn

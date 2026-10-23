@@ -93,11 +93,26 @@ export function ZoteroKeySection() {
             Disconnect
           </Button>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Export saved articles from the <span className="font-medium text-foreground">Saved</span>{" "}
-          tab. Disconnecting removes the key from this browser; it changes nothing in Zotero, and
-          your export history is kept so reconnecting does not re-send everything.
-        </p>
+        <div className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            Export saved articles from the{" "}
+            <span className="font-medium text-foreground">Saved</span> tab.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Stored in your account:</span> a list of
+            which articles you have already sent, so another device will not send them twice.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">Never stored in your account:</span> the
+            key itself. It stays in this browser and goes only to Zotero, because a key with write
+            access can alter or delete an entire library. That is why another device asks for it
+            again.
+          </p>
+          <p>
+            Disconnecting removes the key from this browser. It changes nothing in Zotero, and the
+            record of what was sent is kept, so reconnecting does not re-send everything.
+          </p>
+        </div>
 
         {zotero.exportedCount > 0 && !resetting && (
           <div className="flex items-center justify-between gap-3 pt-1">
@@ -166,12 +181,23 @@ export function ZoteroKeySection() {
         </Button>
       </div>
 
-      <p id="zotero-key-hint" className="text-xs leading-relaxed text-muted-foreground">
-        Tick <span className="font-medium text-foreground">Allow write access</span> when creating
-        the key. It is stored in this browser only — never uploaded here and never synced to your
-        account, because a Zotero key can alter or delete an entire library. You will need to enter
-        it again on another device.
-      </p>
+      <div id="zotero-key-hint" className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+        <p>
+          Tick <span className="font-medium text-foreground">Allow write access</span> when creating
+          the key.
+        </p>
+        <p>
+          <span className="font-medium text-foreground">The key stays in this browser.</span> It is
+          never uploaded to this site and never synced to your account — a Zotero key with write
+          access can alter or delete an entire library, so it goes only to Zotero itself. You will
+          need to enter it again on another device.
+        </p>
+        <p>
+          <span className="font-medium text-foreground">What is stored in your account</span> is
+          the list of which articles you have already sent, so a second device does not send them
+          twice. That is article identifiers, not a credential.
+        </p>
+      </div>
     </form>
   );
 }

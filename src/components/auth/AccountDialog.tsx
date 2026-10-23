@@ -36,16 +36,25 @@ function formatLastSynced(ms: number | null): string {
 function WhatSyncs() {
   return (
     <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-      <p>An account exists for one reason: to carry three things between your devices.</p>
+      <p>An account carries these between your devices:</p>
       <ul className="list-disc space-y-1 pl-5">
         <li>The journals on your watchlist</li>
         <li>Which articles you have marked seen</li>
         <li>Your saved articles</li>
+        <li>
+          Which articles you have already sent to Zotero — so a second device does not send them
+          again
+        </li>
       </ul>
       <p>
-        Those three, plus the email address you sign in with. Nothing else is uploaded — your
-        searches, filters, and the cached article data stay in this browser, exactly as they do
-        without an account.
+        Those four, plus the email address you sign in with. Nothing else is uploaded: your
+        searches, filters, and cached article data stay in this browser, exactly as they do without
+        an account.
+      </p>
+      <p>
+        <span className="font-medium text-foreground">Your Zotero API key is not included.</span>{" "}
+        Only the list of what was sent is stored — the key itself never leaves the browser you
+        typed it into.
       </p>
     </div>
   );
