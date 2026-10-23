@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bookmark, Info } from "lucide-react";
+import { Bookmark, Info, Upload } from "lucide-react";
 import type { Article, FeedDataStatus, FeedFilterState } from "@/lib/types";
 import { JOURNAL_CATALOG } from "@/lib/journals/catalog";
 import { getFeedArticles } from "@/lib/openalex/feed";
@@ -18,6 +18,7 @@ import { FirstRunNotice } from "./FirstRunNotice";
 import { DemoModeBanner } from "./DemoModeBanner";
 import { PartialResultsBanner } from "./PartialResultsBanner";
 import { MarkAllSeenDialog } from "./MarkAllSeenDialog";
+import { ZoteroDialog } from "@/components/zotero/ZoteroDialog";
 import { ContinueBanner } from "./ContinueBanner";
 import { FeedStatusBar } from "./FeedStatusBar";
 import { FeedControls } from "./FeedControls";
@@ -59,6 +60,7 @@ export function FeedPage() {
 
   const [journalManagerOpen, setJournalManagerOpen] = useState(false);
   const [markAllSeenOpen, setMarkAllSeenOpen] = useState(false);
+  const [zoteroOpen, setZoteroOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [filters, setFilters] = useState<FeedFilterState>(DEFAULT_FILTERS);
   const [journalFilter, setJournalFilter] = useState<string>("all");
@@ -313,6 +315,15 @@ export function FeedPage() {
           journalsFollowed={watchlist.followedCount}
         />
 
+        {filters.seen === "saved" && bookmarks.bookmarkedArticles.length > 0 && (
+          <div className="flex justify-end">
+            <Button variant="secondary" size="sm" onClick={() => setZoteroOpen(true)} className="gap-1.5">
+              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+              Send to Zotero
+            </Button>
+          </div>
+        )}
+
         <FeedControls
           filters={filters}
           onFiltersChange={setFilters}
@@ -391,6 +402,12 @@ export function FeedPage() {
         count={unseenInView.length}
         scopeLabel={scopeLabel}
         onConfirm={handleMarkAllSeen}
+      />
+
+      <ZoteroDialog
+        open={zoteroOpen}
+        onOpenChange={setZoteroOpen}
+        savedArticles={bookmarks.bookmarkedArticles}
       />
 
       <InfoDialog open={infoOpen} onOpenChange={setInfoOpen} />

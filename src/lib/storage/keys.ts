@@ -23,4 +23,13 @@ export const STORAGE_KEYS = {
    * different person's new account on a shared machine.
    */
   syncOwner: "stats-feed:sync-owner",
+  /**
+   * The user's Zotero API key. Deliberately **never synced** — see
+   * `hooks/useZoteroKey.ts`. A Zotero write key can alter or delete an entire
+   * library, so it stays in the browser that entered it and travels only to
+   * api.zotero.org.
+   */
+  zoteroApiKey: "stats-feed:zotero-api-key",
+  /** Article ids already pushed to Zotero from this browser, to avoid re-sending. */
+  zoteroSentArticleIds: "stats-feed:zotero-sent-article-ids",
 } as const;

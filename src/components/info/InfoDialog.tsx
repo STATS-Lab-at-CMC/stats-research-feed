@@ -198,6 +198,14 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               to the publisher, visible to them like any other visit.
             </p>
             <p>
+              <span className="font-medium text-foreground">Zotero:</span> if you connect a Zotero
+              API key to export your saved articles, that key is held in this browser alone. It is
+              never uploaded here and never synced to your account,
+              because a Zotero key with write access can alter or delete an entire library. Your
+              browser sends it directly to Zotero and nowhere else — which is also why you have to
+              enter it again on another device.
+            </p>
+            <p>
               Clearing your browser data for this site resets the feed to a blank slate.
               {signedIn
                 ? " Because you are signed in, your watchlist, seen articles, and saved articles come back the next time you sign in."
