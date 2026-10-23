@@ -18,10 +18,25 @@ const bookmarksStore = createPersistedEntityStore<Article>(
  * out of the 90-day retrieval window.
  */
 export function useBookmarks() {
-  const { entities, has: isBookmarked, toggle: toggleBookmark, remove: removeBookmark } =
-    bookmarksStore.useEntities();
+  const {
+    entities,
+    has: isBookmarked,
+    toggle: toggleBookmark,
+    refresh: refreshBookmarks,
+    remove: removeBookmark,
+  } = bookmarksStore.useEntities();
 
   const bookmarkedArticles = useMemo(() => Array.from(entities.values()), [entities]);
 
-  return { bookmarkedArticles, isBookmarked, toggleBookmark, removeBookmark };
+  return {
+    bookmarkedArticles,
+    isBookmarked,
+    toggleBookmark,
+    /**
+     * Upgrades stored snapshots from the live feed when they predate a field
+     * the type has since gained. See `createPersistedEntityStore.refresh`.
+     */
+    refreshBookmarks,
+    removeBookmark,
+  };
 }

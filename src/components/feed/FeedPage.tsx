@@ -98,6 +98,22 @@ export function FeedPage() {
     };
   }, [allReady, watchlist.followedJournals, reloadToken]);
 
+  /**
+   * Saved articles are snapshots, frozen at the moment they were bookmarked,
+   * so one saved before a field existed never gains it — which is how saved
+   * articles ended up with no `pdfUrl` after PDF links shipped, and therefore
+   * no PDF attached on Zotero export.
+   *
+   * Whenever a bookmarked article is still in the live feed, its fresh copy
+   * replaces the stored one. Self-limiting: `refreshBookmarks` only acts on
+   * snapshots that are actually missing keys, so this is one write per stale
+   * article and then nothing.
+   */
+  useEffect(() => {
+    if (articles.length === 0) return;
+    bookmarks.refreshBookmarks(articles);
+  }, [articles, bookmarks]);
+
   // In Saved mode, the journal dropdown should also offer journals behind a
   // bookmark that's no longer followed — otherwise there'd be no way to
   // filter Saved down to that article's journal.

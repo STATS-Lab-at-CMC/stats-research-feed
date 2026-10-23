@@ -182,6 +182,8 @@ export interface EntityStore<T> {
     entities: Map<string, T>;
     has: (id: string) => boolean;
     toggle: (item: T) => void;
+    /** Replaces already-stored items in place. Never adds anything new. */
+    refresh: (items: T[]) => void;
     remove: (id: string) => void;
     clear: () => void;
   };
@@ -287,6 +289,50 @@ export function createPersistedEntityStore<T>(
       );
     }, []);
 
+    /**
+     * Brings stored snapshots up to date with fresher copies of the same
+     * items, and only those — it never adds or removes anything.
+     *
+     * Entity stores keep whole objects so a saved item stays renderable after
+     * it leaves whatever collection it came from. The cost is that a snapshot
+     * is frozen at the moment it was saved, so a field added to the type later
+     * is missing from it forever: that is exactly how saved articles ended up
+     * with no `pdfUrl` after PDF links shipped, with no way to recover it
+     * because the stored copy is also what syncs.
+     *
+     * The guard is deliberately "the live copy has keys the stored one does
+     * not", i.e. schema drift, rather than any difference at all. Upstream
+     * metadata churns, and rewriting every snapshot on every feed load would
+     * be a steady trickle of pointless sync traffic. This fires once per item
+     * and then stops.
+     */
+    const refresh = useCallback((items: T[]) => {
+      const current = ensureLoaded();
+      const upgraded: T[] = [];
+
+      for (const item of items) {
+        const stored = current.get(getId(item));
+        if (!stored) continue;
+        const storedKeys = new Set(Object.keys(stored as object));
+        const gainsKeys = Object.keys(item as object).some((key) => !storedKeys.has(key));
+        if (gainsKeys) upgraded.push(item);
+      }
+
+      if (upgraded.length === 0) return;
+
+      const next = new Map(current);
+      upgraded.forEach((item) => next.set(getId(item), item));
+      replace(
+        next,
+        slice && {
+          slice,
+          kind: "add",
+          ids: upgraded.map((item) => getId(item)),
+          items: upgraded as unknown as Article[],
+        },
+      );
+    }, []);
+
     const remove = useCallback((id: string) => {
       const current = ensureLoaded();
       if (current.has(id)) {
@@ -300,7 +346,7 @@ export function createPersistedEntityStore<T>(
       replace(new Map(), slice && { slice, kind: "replace", ids: [], items: [] });
     }, []);
 
-    return { entities: value, has, toggle, remove, clear };
+    return { entities: value, has, toggle, refresh, remove, clear };
   }
 
   return { useEntities };
