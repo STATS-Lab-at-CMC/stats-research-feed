@@ -18,6 +18,7 @@ const STATS_LAB_URL = "https://www.statslabatcmc.com";
 const OPENALEX_URL = "https://openalex.org";
 const OPENALEX_DOCS_URL = "https://docs.openalex.org";
 const SUPABASE_URL = "https://supabase.com";
+const SUPPORT_URL = "https://buymeacoffee.com/szzhou4";
 
 interface InfoDialogProps {
   open: boolean;
@@ -260,6 +261,10 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
               Built by the <span className="font-medium text-foreground">STATS Lab</span> at
               Claremont McKenna College, which works on organizational and quantitative psychology,
               psychometrics, and research methods.
+            </p>
+            <p>
+              This feed is free, and will stay that way. If you would like to support our work, you
+              can <TextLink href={SUPPORT_URL}>buy us a coffee</TextLink>.
             </p>
           </Section>
         </div>
