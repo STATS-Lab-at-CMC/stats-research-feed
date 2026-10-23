@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CloudOff, Loader2, Mail, RefreshCw } from "lucide-react";
+import { AlertCircle, Check, CloudOff, KeyRound, Loader2, Mail, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -97,6 +97,89 @@ function WhyAnAccount() {
   );
 }
 
+/**
+ * Code entry for the "check your email" step.
+ *
+ * Offered alongside the link rather than instead of it, and placed first,
+ * because for institutional addresses the code is the path that actually
+ * works: mail security systems routinely open inbound links before the reader
+ * does, which spends a single-use link, while a six-digit code typed by hand
+ * cannot be consumed by anything.
+ */
+function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => void }) {
+  const { verifyCode } = useAuth();
+  const [code, setCode] = useState("");
+  const [state, setState] = useState<SendState>({ kind: "idle" });
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (code.trim().length < 6 || state.kind === "sending") return;
+    setState({ kind: "sending" });
+    try {
+      await verifyCode(email, code);
+      onSignedIn();
+    } catch (error) {
+      setState({
+        kind: "error",
+        message: error instanceof Error ? error.message : "That code did not work.",
+      });
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <label htmlFor="signin-code" className="text-sm font-medium text-foreground">
+        Enter the 6-digit code from the email
+      </label>
+      <div className="flex items-center gap-2">
+        <Input
+          id="signin-code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={7}
+          placeholder="123456"
+          value={code}
+          onChange={(event) => {
+            setCode(event.target.value.replace(/[^\d\s-]/g, ""));
+            setState({ kind: "idle" });
+          }}
+          className="font-mono tracking-[0.3em]"
+          aria-describedby="signin-code-hint"
+        />
+        <Button type="submit" disabled={state.kind === "sending" || code.trim().length < 6}>
+          {state.kind === "sending" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Checking…
+            </>
+          ) : (
+            <>
+              <KeyRound className="h-4 w-4" aria-hidden="true" />
+              Sign in
+            </>
+          )}
+        </Button>
+      </div>
+
+      {state.kind === "error" && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+          {state.message}
+        </p>
+      )}
+
+      <p id="signin-code-hint" className="text-xs text-muted-foreground">
+        The code works even if the link does not — some mail systems open links before you do,
+        which uses them up.
+      </p>
+    </form>
+  );
+}
+
 function SignInPanel({ onClose }: { onClose: () => void }) {
   const { sendMagicLink } = useAuth();
   const [email, setEmail] = useState("");
@@ -130,6 +213,10 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
 
         <Separator />
 
+        <CodeEntry email={email.trim()} onSignedIn={onClose} />
+
+        <Separator />
+
         {/*
           Deliberately says "requested", not "sent".
           The server accepts the request and returns success *before* the
@@ -142,16 +229,16 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
         */}
         <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Open it and you will land back here, signed in. The link works once and expires after an
-            hour.
+            The email also contains a link. Opening it signs you in too — it works once and expires
+            after an hour.
           </p>
           <p className="font-medium text-foreground">If nothing arrives within a few minutes:</p>
           <ul className="list-disc space-y-1 pl-5">
             <li>Check your spam or quarantine folder — institutional filters often hold automated
               sign-in mail.</li>
             <li>
-              Some mail scanners follow links before you do, which uses up a one-time link. Request
-              another.
+              If the link says it is invalid or expired, a mail scanner opened it first — use the
+              code above instead, which cannot be consumed that way.
             </li>
             <li>
               If this site was set up recently, its mail provider may not be configured yet. Until

@@ -347,7 +347,12 @@ configuration at all, but two optional environment variables matter (see
 | `NEXT_PUBLIC_SUPABASE_URL` / `..._ANON_KEY` | No accounts, no cross-device sync, and no Zotero export (which is account-gated). Everything else works, saved in the browser. |
 
 Turning on accounts takes about 15 minutes — see
-[`SUPABASE_SETUP.md`](SUPABASE_SETUP.md).
+[`SUPABASE_SETUP.md`](SUPABASE_SETUP.md). Note that the auth email templates in
+[`supabase/email-templates/`](supabase/email-templates/) are **not optional for
+institutional email**: they carry a 6-digit sign-in code alongside the link,
+because university mail systems routinely open inbound links before the reader
+does, which spends a single-use link. A code typed by hand cannot be consumed
+that way.
 
 Other useful commands:
 

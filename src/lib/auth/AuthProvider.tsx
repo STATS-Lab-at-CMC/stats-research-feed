@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Session } from "@supabase/supabase-js";
+import type { EmailOtpType, Session } from "@supabase/supabase-js";
 import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import {
   getInitialSyncState,
@@ -37,8 +37,17 @@ export interface AuthContextValue {
   email: string | null;
   userId: string | null;
   sync: SyncState;
-  /** Sends a magic link. Resolves on success; rejects with a user-facing message. */
+  /** Sends a sign-in email containing both a link and a code. Rejects with a user-facing message. */
   sendMagicLink: (email: string) => Promise<void>;
+  /**
+   * Redeems the 6-digit code from that email.
+   *
+   * Exists because a link can be consumed before the reader clicks it —
+   * university mail systems scan inbound links as a matter of course — while
+   * a code typed by hand cannot be. For institutional addresses this is the
+   * path that reliably works, not a fallback.
+   */
+  verifyCode: (email: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -160,6 +169,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw new Error(describeAuthError(error));
   }, []);
 
+  /**
+   * Token types to try in order. Supabase issues a `signup` token when no
+   * account exists yet and an `email` one afterwards, and the caller has no
+   * reliable way to know which. Verifying under the wrong type fails with the
+   * same "invalid or expired" message as a dead code, so guessing wrong would
+   * look identical to the user mistyping it.
+   *
+   * Safe to retry: a failed verification does not consume the token.
+   */
+  const verifyCode = useCallback(async (email: string, code: string) => {
+    const client = getSupabaseClient();
+    if (!client) throw new Error("Accounts are not available on this deployment.");
+
+    const token = code.replace(/\s|-/g, "");
+    const types: EmailOtpType[] = ["email", "signup", "magiclink"];
+
+    let lastMessage = "That code did not work.";
+    for (const type of types) {
+      const { error } = await client.auth.verifyOtp({ email: email.trim(), token, type });
+      if (!error) return;
+      lastMessage = describeAuthError(error);
+    }
+    throw new Error(lastMessage);
+  }, []);
+
   const signOut = useCallback(async () => {
     const client = getSupabaseClient();
     // Clear local state first: an explicit sign-out should leave nothing of
@@ -182,10 +216,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId: session?.user.id ?? null,
       sync: syncState,
       sendMagicLink,
+      verifyCode,
       signOut,
       refresh,
     }),
-    [status, session, syncState, sendMagicLink, signOut, refresh],
+    [status, session, syncState, sendMagicLink, verifyCode, signOut, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
