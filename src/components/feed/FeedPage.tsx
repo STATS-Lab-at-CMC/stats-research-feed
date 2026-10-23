@@ -5,6 +5,7 @@ import { Bookmark, Info, Upload } from "lucide-react";
 import type { Article, FeedDataStatus, FeedFilterState } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { useCustomJournals } from "@/hooks/useCustomJournals";
+import { useWatchlistDefaultsMigration } from "@/hooks/useWatchlistDefaultsMigration";
 import { getFeedArticles } from "@/lib/openalex/feed";
 import { getContinueState } from "@/lib/feed/continueTarget";
 import { parseDateMs, recencyBucket, RECENCY_BUCKET_LABELS, type RecencyBucket } from "@/lib/utils/date";
@@ -46,17 +47,28 @@ const BUCKET_ORDER_NEWEST_FIRST: RecencyBucket[] = ["thisWeek", "earlierThisMont
 const BUCKET_ORDER_OLDEST_FIRST: RecencyBucket[] = ["older", "earlierThisMonth", "thisWeek", "undated"];
 
 export function FeedPage() {
+  const auth = useAuth();
   const watchlist = useWatchlist();
   const seenState = useSeenState();
   const bookmarks = useBookmarks();
   const visit = useVisitTracking();
   const firstRun = useFirstRunNotice();
-  const auth = useAuth();
   const zotero = useZoteroKey();
   const journalLibrary = useCustomJournals();
 
   const hasMounted = useHasMounted();
   const allReady = hasMounted && visit.hydrated;
+
+  /**
+   * The watchlist is only final once any cloud pull has landed — for a
+   * signed-in reader the pull overwrites it, so a reset run beforehand would
+   * be silently undone while still recording itself as done.
+   */
+  const watchlistSettled =
+    allReady &&
+    (auth.status !== "signedIn" || auth.sync.status === "synced" || auth.sync.status === "error");
+
+  useWatchlistDefaultsMigration(watchlistSettled, watchlist.restoreDefaults);
 
   const [feedStatus, setFeedStatus] = useState<FeedDataStatus>("loading");
   const [articles, setArticles] = useState<Article[]>([]);

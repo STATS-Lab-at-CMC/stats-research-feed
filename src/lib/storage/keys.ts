@@ -29,6 +29,12 @@ export const STORAGE_KEYS = {
    * library, so it stays in the browser that entered it and travels only to
    * api.zotero.org.
    */
+  /**
+   * Which generation of the default watchlist this browser has been reset to.
+   * Deliberately NOT synced: it records what has happened to this browser, and
+   * syncing it would let one device suppress the reset on another.
+   */
+  watchlistDefaultsVersion: "stats-feed:watchlist-defaults-version",
   /** Journals the user added beyond the built-in catalog. Synced — see useCustomJournals. */
   customJournals: "stats-feed:custom-journals",
   zoteroApiKey: "stats-feed:zotero-api-key",
