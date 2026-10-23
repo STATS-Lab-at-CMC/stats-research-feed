@@ -50,6 +50,15 @@ assistant in the STATS Lab, as part of her work in the lab.
 
 ### The journal watchlist
 
+You are not limited to the built-in list. Searching for a journal the app does
+not know offers to look it up in OpenAlex, and adding one from those results
+follows it immediately — OpenAlex indexes essentially all of academic
+publishing, so anything with a source record can be followed. Added journals
+carry their OpenAlex Source ID, so they skip ISSN resolution entirely, which
+also means journals OpenAlex indexes without an ISSN still work. They sync
+with your account, because the watchlist syncs ids and an id without its
+definition is useless on another device.
+
 The app ships with a default catalog of 26 organizational/I/O psychology
 journals (see [`src/lib/journals/catalog.ts`](src/lib/journals/catalog.ts)),
 all followed by default. Open **Manage journals** to search, check/uncheck
@@ -401,6 +410,7 @@ row-level security policies live in
 | Seen article ids | Yes | The feature the app exists for — "where did I leave off" should survive a change of machine |
 | Saved articles (full snapshots) | Yes | Same reasoning, and the snapshot keeps them readable after a journal is unfollowed |
 | Which articles went to Zotero | Yes | Bookkeeping, not a credential. Kept per-browser it was useless: a second device re-exported everything |
+| Journals you added yourself | Yes | The watchlist syncs ids; without the definitions, another device gets ids it cannot render or fetch |
 | **Zotero API key** | **No** | **Can alter or delete an entire library. Stays in the browser that entered it, travels only to api.zotero.org** |
 | Previous-visit timestamps | No | Genuinely per-device: "new since your last visit" means your last visit *here* |
 | OpenAlex source/works caches | No | Disposable performance data with a 20-minute/24-hour TTL. Syncing them would add write traffic and staleness bugs for no benefit |

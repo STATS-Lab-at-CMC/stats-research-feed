@@ -24,7 +24,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { storage } from "@/lib/storage/localStorageAdapter";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
-import type { Article } from "@/lib/types";
 import {
   getSyncableSlice,
   setSyncOpHandler,
@@ -99,6 +98,7 @@ function snapshotAll(): Record<SyncSlice, SlicePayload> {
     seen: snapshotSlice("seen"),
     saved: snapshotSlice("saved"),
     zoteroExports: snapshotSlice("zoteroExports"),
+    customJournals: snapshotSlice("customJournals"),
   };
 }
 
@@ -115,9 +115,12 @@ function applyOpToPayload(payload: SlicePayload, op: SyncOp): SlicePayload {
   const target = new Set(op.ids);
 
   if (payload.items) {
-    const byId = new Map<string, Article>(payload.items.map((item) => [item.id, item]));
+    // Items are `unknown` on the bus; every slice that carries them keys by a
+    // string `id`, which is the only property this function needs.
+    const idOf = (item: unknown) => (item as { id: string }).id;
+    const byId = new Map<string, unknown>(payload.items.map((item) => [idOf(item), item]));
     if (removing) target.forEach((id) => byId.delete(id));
-    else (op.items ?? []).forEach((item) => byId.set(item.id, item));
+    else (op.items ?? []).forEach((item) => byId.set(idOf(item), item));
     return { ids: Array.from(byId.keys()), items: Array.from(byId.values()) };
   }
 
@@ -288,6 +291,10 @@ async function runPull(client: SupabaseClient, userId: string): Promise<void> {
         items: remote.saved,
       });
       getSyncableSlice("zoteroExports")?.applyRemote({ ids: remote.zoteroExports });
+      getSyncableSlice("customJournals")?.applyRemote({
+        ids: remote.customJournals.map((journal) => journal.id),
+        items: remote.customJournals,
+      });
     }
 
     writeSyncOwner(userId);

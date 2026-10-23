@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, Info, Upload } from "lucide-react";
 import type { Article, FeedDataStatus, FeedFilterState } from "@/lib/types";
-import { JOURNAL_CATALOG } from "@/lib/journals/catalog";
+import type { JournalDefinition } from "@/lib/journals/catalog";
+import { useCustomJournals } from "@/hooks/useCustomJournals";
 import { getFeedArticles } from "@/lib/openalex/feed";
 import { getContinueState } from "@/lib/feed/continueTarget";
 import { parseDateMs, recencyBucket, RECENCY_BUCKET_LABELS, type RecencyBucket } from "@/lib/utils/date";
@@ -52,6 +53,7 @@ export function FeedPage() {
   const firstRun = useFirstRunNotice();
   const auth = useAuth();
   const zotero = useZoteroKey();
+  const journalLibrary = useCustomJournals();
 
   const hasMounted = useHasMounted();
   const allReady = hasMounted && visit.hydrated;
@@ -121,11 +123,11 @@ export function FeedPage() {
     if (filters.seen !== "saved") return watchlist.followedJournals;
     const followedIds = new Set(watchlist.followedJournals.map((j) => j.id));
     const savedJournalIds = new Set(bookmarks.bookmarkedArticles.map((a) => a.journalId));
-    const extraJournals = JOURNAL_CATALOG.filter(
+    const extraJournals = journalLibrary.allJournals.filter(
       (journal) => savedJournalIds.has(journal.id) && !followedIds.has(journal.id),
     );
     return [...watchlist.followedJournals, ...extraJournals].sort((a, b) => a.name.localeCompare(b.name));
-  }, [filters.seen, watchlist.followedJournals, bookmarks.bookmarkedArticles]);
+  }, [filters.seen, watchlist.followedJournals, bookmarks.bookmarkedArticles, journalLibrary.allJournals]);
 
   // If the journal currently selected in the per-journal display filter is no
   // longer a valid option (its dropdown entry disappeared — e.g. unfollowed
@@ -228,6 +230,28 @@ export function FeedPage() {
     if (filters.search.trim()) parts.push(`matching “${filters.search.trim()}”`);
     return parts.length > 0 ? parts.join(", ") : null;
   }, [filters, journalFilter, journalOptions]);
+
+  /**
+   * Adding a journal follows it in the same step: searching for one by name is
+   * already the act of wanting it in the feed, and leaving it added-but-
+   * unfollowed would mean nothing visibly happened.
+   */
+  const handleAddJournal = useCallback(
+    (journal: JournalDefinition) => {
+      journalLibrary.addJournal(journal);
+      if (!watchlist.followedJournalIds.has(journal.id)) watchlist.toggleJournal(journal.id);
+    },
+    [journalLibrary, watchlist],
+  );
+
+  /** Removing also unfollows, so no orphaned id is left in the watchlist. */
+  const handleRemoveJournal = useCallback(
+    (id: string) => {
+      if (watchlist.followedJournalIds.has(id)) watchlist.toggleJournal(id);
+      journalLibrary.removeJournal(id);
+    },
+    [journalLibrary, watchlist],
+  );
 
   const handleMarkAllSeen = useCallback(() => {
     seenState.markManySeen(unseenInView.map((article) => article.id));
@@ -423,13 +447,15 @@ export function FeedPage() {
       <JournalManager
         open={journalManagerOpen}
         onOpenChange={setJournalManagerOpen}
-        journals={JOURNAL_CATALOG}
+        journals={journalLibrary.allJournals}
         followedJournalIds={watchlist.followedJournalIds}
         onToggleJournal={watchlist.toggleJournal}
         onSelectAll={watchlist.selectAll}
         onClearAll={watchlist.clearAll}
         onRestoreDefaults={watchlist.restoreDefaults}
         unresolvedJournalIds={unresolvedJournalIds}
+        onAddJournal={handleAddJournal}
+        onRemoveJournal={handleRemoveJournal}
       />
 
       <MarkAllSeenDialog

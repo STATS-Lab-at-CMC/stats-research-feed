@@ -21,6 +21,18 @@ export interface JournalDefinition {
   /** Print and/or online ISSNs, used to resolve the OpenAlex Source ID. */
   issns: string[];
   publisher?: string;
+  /**
+   * Pre-resolved OpenAlex Source ID, set for journals the user added by
+   * searching OpenAlex — the id is already known at that point, so there is
+   * nothing to look up. Absent for the built-in catalog, which resolves by
+   * ISSN at runtime and is never hand-typed.
+   *
+   * It also covers journals OpenAlex indexes without an ISSN, which ISSN
+   * resolution could never find.
+   */
+  openAlexSourceId?: string;
+  /** True for journals the user added themselves, so the UI can offer to remove them. */
+  isCustom?: boolean;
   /** Whether this journal is part of the user's watchlist on first visit. */
   defaultFollowed: boolean;
   confidence: "verified" | "low";

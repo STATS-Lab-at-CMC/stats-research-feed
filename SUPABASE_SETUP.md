@@ -29,10 +29,11 @@ and pressing **Run**:
 
 1. [`0001_user_state.sql`](supabase/migrations/0001_user_state.sql) — watchlist, seen articles, saved articles
 2. [`0002_zotero_exports.sql`](supabase/migrations/0002_zotero_exports.sql) — record of what has been exported to Zotero
+3. [`0003_custom_journals.sql`](supabase/migrations/0003_custom_journals.sql) — journals added beyond the built-in catalog
 
 Both are idempotent, so re-running either is harmless.
 
-Together they create four tables and — importantly — the row-level security
+Together they create five tables and — importantly — the row-level security
 policies that make each row readable and writable only by the user it belongs
 to.
 
@@ -42,8 +43,9 @@ to.
 | `seen_articles` | One row per article marked seen. |
 | `saved_articles` | One row per bookmark, with a full snapshot of the article. |
 | `zotero_exports` | One row per article already sent to Zotero, so a second export from any device skips it. **Never stores Zotero credentials** — the API key stays in the browser that entered it. |
+| `custom_journals` | Journals the user added beyond the built-in catalog. Synced because the watchlist syncs ids, and an id without its definition is useless on another device. |
 
-Verify it worked: **Table Editor** should list all four, each showing an
+Verify it worked: **Table Editor** should list all five, each showing an
 "RLS enabled" badge. If any table says RLS is *disabled*, stop and re-run the
 script — without those policies every user could read every other user's rows.
 

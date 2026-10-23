@@ -10,6 +10,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { JournalDefinition } from "@/lib/journals/catalog";
 import type { Article } from "@/lib/types";
 import type { SlicePayload, SyncOp } from "./bus";
 
@@ -37,6 +38,8 @@ export interface RemoteState {
   saved: Article[];
   /** Article ids already exported to Zotero. Never includes the API key. */
   zoteroExports: string[];
+  /** Journals the user added themselves, beyond the built-in catalog. */
+  customJournals: JournalDefinition[];
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -79,11 +82,12 @@ export async function pullRemoteState(
     .eq("user_id", userId)
     .maybeSingle();
 
-  const [settings, seenRows, savedRows, zoteroRows] = await Promise.all([
+  const [settings, seenRows, savedRows, zoteroRows, journalRows] = await Promise.all([
     settingsPromise,
     selectAllPages<{ article_id: string }>(client, "seen_articles", "article_id", userId),
     selectAllPages<{ article: Article }>(client, "saved_articles", "article", userId),
     selectAllPages<{ article_id: string }>(client, "zotero_exports", "article_id", userId),
+    selectAllPages<{ journal: JournalDefinition }>(client, "custom_journals", "journal", userId),
   ]);
 
   if (settings.error) {
@@ -95,6 +99,9 @@ export async function pullRemoteState(
     seen: seenRows.map((row) => row.article_id),
     saved: savedRows.map((row) => row.article).filter((article): article is Article => !!article?.id),
     zoteroExports: zoteroRows.map((row) => row.article_id),
+    customJournals: journalRows
+      .map((row) => row.journal)
+      .filter((journal): journal is JournalDefinition => !!journal?.id),
   };
 }
 
@@ -175,6 +182,35 @@ async function removeSaved(client: SupabaseClient, userId: string, ids: string[]
   }
 }
 
+async function addCustomJournals(
+  client: SupabaseClient,
+  userId: string,
+  journals: JournalDefinition[],
+): Promise<void> {
+  for (const batch of chunk(journals, WRITE_CHUNK)) {
+    const { error } = await client.from("custom_journals").upsert(
+      batch.map((journal) => ({ user_id: userId, journal_id: journal.id, journal })),
+      { onConflict: "user_id,journal_id" },
+    );
+    if (error) throw new Error(`Could not save your added journals: ${error.message}`);
+  }
+}
+
+async function removeCustomJournals(
+  client: SupabaseClient,
+  userId: string,
+  ids: string[],
+): Promise<void> {
+  for (const batch of chunk(ids, WRITE_CHUNK)) {
+    const { error } = await client
+      .from("custom_journals")
+      .delete()
+      .eq("user_id", userId)
+      .in("journal_id", batch);
+    if (error) throw new Error(`Could not update your added journals: ${error.message}`);
+  }
+}
+
 async function deleteAll(client: SupabaseClient, userId: string, table: string): Promise<void> {
   const { error } = await client.from(table).delete().eq("user_id", userId);
   if (error) throw new Error(`Could not clear ${table}: ${error.message}`);
@@ -204,12 +240,23 @@ export async function pushOp(
       if (op.ids.length > 0) await addSeen(client, userId, op.ids);
       return;
 
-    case "saved":
-      if (op.kind === "add") return addSaved(client, userId, op.items ?? []);
+    case "saved": {
+      const articles = (op.items ?? []) as Article[];
+      if (op.kind === "add") return addSaved(client, userId, articles);
       if (op.kind === "remove") return removeSaved(client, userId, op.ids);
       await deleteAll(client, userId, "saved_articles");
-      if ((op.items ?? []).length > 0) await addSaved(client, userId, op.items ?? []);
+      if (articles.length > 0) await addSaved(client, userId, articles);
       return;
+    }
+
+    case "customJournals": {
+      const journals = (op.items ?? []) as JournalDefinition[];
+      if (op.kind === "add") return addCustomJournals(client, userId, journals);
+      if (op.kind === "remove") return removeCustomJournals(client, userId, op.ids);
+      await deleteAll(client, userId, "custom_journals");
+      if (journals.length > 0) await addCustomJournals(client, userId, journals);
+      return;
+    }
 
     case "zoteroExports":
       if (op.kind === "add") return addExports(client, userId, op.ids);
@@ -236,14 +283,17 @@ export async function seedRemoteState(
     seen: SlicePayload;
     saved: SlicePayload;
     zoteroExports: SlicePayload;
+    customJournals: SlicePayload;
   },
 ): Promise<void> {
   if (local.seen.ids.length > 0) await addSeen(client, userId, local.seen.ids);
   if ((local.saved.items ?? []).length > 0) {
-    await addSaved(client, userId, local.saved.items ?? []);
+    await addSaved(client, userId, (local.saved.items ?? []) as Article[]);
   }
   if (local.zoteroExports.ids.length > 0) {
     await addExports(client, userId, local.zoteroExports.ids);
   }
+  const localJournals = (local.customJournals.items ?? []) as JournalDefinition[];
+  if (localJournals.length > 0) await addCustomJournals(client, userId, localJournals);
   await replaceWatchlist(client, userId, local.watchlist.ids);
 }

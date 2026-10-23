@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
    * library, so it stays in the browser that entered it and travels only to
    * api.zotero.org.
    */
+  /** Journals the user added beyond the built-in catalog. Synced — see useCustomJournals. */
+  customJournals: "stats-feed:custom-journals",
   zoteroApiKey: "stats-feed:zotero-api-key",
   /** Which Zotero account the stored key belongs to, so the account panel can say so without a round trip. */
   zoteroIdentity: "stats-feed:zotero-identity",

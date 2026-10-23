@@ -9,20 +9,24 @@
  * they did in V1.
  */
 
-import type { Article } from "@/lib/types";
-
 /**
  * The state an account syncs. Caches and visit timestamps stay local, and so
  * does the Zotero API key — `zoteroExports` is only the record of which
  * articles have already been sent, never the credential that sent them.
  */
-export type SyncSlice = "watchlist" | "seen" | "saved" | "zoteroExports";
+export type SyncSlice =
+  | "watchlist"
+  | "seen"
+  | "saved"
+  | "zoteroExports"
+  | "customJournals";
 
 export const SYNC_SLICES: readonly SyncSlice[] = [
   "watchlist",
   "seen",
   "saved",
   "zoteroExports",
+  "customJournals",
 ] as const;
 
 /**
@@ -36,13 +40,19 @@ export interface SyncOp {
   slice: SyncSlice;
   kind: "add" | "remove" | "replace";
   ids: string[];
-  items?: Article[];
+  items?: unknown[];
 }
 
 /** A point-in-time serialization of one slice, used for seeding and for full replaces. */
 export interface SlicePayload {
   ids: string[];
-  items?: Article[];
+  /**
+   * Whole objects, for slices that persist more than ids — saved articles and
+   * custom journals. Deliberately `unknown`: this module is the dependency-free
+   * seam between stores and the cloud, and naming either concrete type here
+   * would make one of them a lie. `sync/remote.ts` narrows per slice.
+   */
+  items?: unknown[];
 }
 
 /**

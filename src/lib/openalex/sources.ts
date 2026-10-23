@@ -105,15 +105,30 @@ export async function resolveJournalSources(
     return { sourceIdByJournalId, unresolvedJournalIds };
   }
 
-  const issnToJournalId = new Map<string, string>();
+  // Journals added from an OpenAlex search already carry their Source ID, so
+  // there is nothing to look up. This also covers journals OpenAlex indexes
+  // without an ISSN, which the lookup below could never match.
+  //
+  // These are seeded into `resolvedNow` rather than written straight to the
+  // result, so the cache write-back at the end treats them exactly like any
+  // other resolution. Writing them to the result directly would leave them
+  // absent from `resolvedNow` and therefore cached as *unresolved*.
+  const preResolved = new Map<string, string>();
+  const stillUnknown: JournalDefinition[] = [];
   for (const journal of staleJournals) {
+    if (journal.openAlexSourceId) preResolved.set(journal.id, journal.openAlexSourceId);
+    else stillUnknown.push(journal);
+  }
+
+  const issnToJournalId = new Map<string, string>();
+  for (const journal of stillUnknown) {
     for (const issn of journal.issns) {
       issnToJournalId.set(normalizeIssn(issn), journal.id);
     }
   }
 
   const allIssns = Array.from(issnToJournalId.keys());
-  const resolvedNow = new Map<string, string>();
+  const resolvedNow = new Map<string, string>(preResolved);
 
   // OpenAlex allows OR-ing many filter values with `|`; chunk defensively in
   // case the stale set is large enough to risk URL length limits. In the
@@ -150,7 +165,11 @@ export async function resolveJournalSources(
   if (fetchFailed) {
     // Network/API failure resolving the stale set: don't cache anything for
     // it (so it's retried next time), and don't claim it's unresolved. Fall
-    // back to whatever was already resolved from cache above.
+    // back to whatever was already resolved from cache above, plus any ids we
+    // knew without asking — those needed no network and are still good.
+    preResolved.forEach((sourceId, journalId) =>
+      sourceIdByJournalId.set(journalId, sourceId),
+    );
     return { sourceIdByJournalId, unresolvedJournalIds };
   }
 
