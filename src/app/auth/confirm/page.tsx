@@ -41,6 +41,45 @@ function readParam(name: string): string | null {
   return new URLSearchParams(window.location.hash.replace(/^#/, "")).get(name);
 }
 
+/**
+ * Token types to try, in order, when the one named in the link does not work.
+ *
+ * The `type` in the URL is whatever the email template hard-codes, and that
+ * can disagree with the token Supabase actually issued. The common way: the
+ * Magic Link template gets pasted into the Confirm signup tab too — the two
+ * differ by one word and look identical otherwise — so a first-time reader
+ * receives a *signup* token labelled `magiclink`, and verifying it under the
+ * wrong type fails with "Email link is invalid or has expired". Which reads
+ * exactly like a scanner-consumed link, and sends you hunting in the wrong
+ * place.
+ *
+ * Retrying is safe: a *failed* verification does not consume the token, only
+ * a successful one does. So the worst case is a few extra round trips before
+ * reporting the same error.
+ */
+const FALLBACK_OTP_TYPES: EmailOtpType[] = ["signup", "magiclink", "email", "recovery", "invite"];
+
+async function redeemToken(
+  client: NonNullable<ReturnType<typeof getSupabaseClient>>,
+  tokenHash: string,
+  declaredType: EmailOtpType | null,
+) {
+  const ordered = [
+    declaredType ?? "email",
+    ...FALLBACK_OTP_TYPES.filter((type) => type !== declaredType),
+  ];
+
+  let lastError: { message: string } | null = null;
+  for (const type of ordered) {
+    const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (!error) return { error: null };
+    lastError = error;
+    // A genuinely dead token fails the same way under every type, so there is
+    // no point distinguishing further — fall through and try the next one.
+  }
+  return { error: lastError };
+}
+
 export default function ConfirmPage() {
   const { status } = useAuth();
   const [phase, setPhase] = useState<Phase>({ kind: "working" });
@@ -70,17 +109,7 @@ export default function ConfirmPage() {
 
     let cancelled = false;
 
-    client.auth
-      .verifyOtp({
-        token_hash: tokenHash,
-        /**
-         * Whichever flow the template was written for. A first-time reader
-         * gets "signup" (Supabase sends Confirm signup, not Magic Link, when
-         * no account exists yet); a returning one gets "magiclink". Falling
-         * back to "email" keeps an un-typed link working.
-         */
-        type: (readParam("type") as EmailOtpType | null) ?? "email",
-      })
+    redeemToken(client, tokenHash, readParam("type") as EmailOtpType | null)
       .then(({ error }) => {
         if (cancelled) return;
         if (error) {
@@ -138,6 +167,22 @@ export default function ConfirmPage() {
                 <p role="alert" className="text-sm leading-relaxed text-muted-foreground">
                   {phase.message}
                 </p>
+              </div>
+              <div className="space-y-1.5 text-left text-sm leading-relaxed text-muted-foreground">
+                <p className="font-medium text-foreground">What usually helps:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    Request a fresh link and open it promptly — links are single-use and expire.
+                  </li>
+                  <li>
+                    Open it in a normal browser window rather than your mail app&apos;s built-in
+                    one.
+                  </li>
+                  <li>
+                    If it keeps failing, your mail system may be opening links before you do. Tell
+                    whoever runs this site, and they can switch you to a sign-in code instead.
+                  </li>
+                </ul>
               </div>
               <Button asChild className="w-full">
                 <Link href="/">Back to the feed</Link>
