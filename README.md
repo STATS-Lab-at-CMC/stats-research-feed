@@ -59,7 +59,8 @@ also means journals OpenAlex indexes without an ISSN still work. They sync
 with your account, because the watchlist syncs ids and an id without its
 definition is useless on another device.
 
-The app ships with a default catalog of 26 organizational/I/O psychology
+The app ships with a default catalog of 38 organizational, I/O, and
+quantitative psychology
 journals (see [`src/lib/journals/catalog.ts`](src/lib/journals/catalog.ts)),
 all followed by default. Open **Manage journals** to search, check/uncheck
 individual journals, select all, clear all, or restore the defaults. Your
@@ -119,7 +120,7 @@ already points at, so labelling it "PDF" would promise a file and sometimes
 deliver a paywall.
 
 In practice this covers about a quarter of the feed: of 318 recent articles
-across the 26 journals, 159 were open access but only 90 had a direct PDF
+across the 38 journals, 159 were open access but only 90 had a direct PDF
 address. OpenAlex often knows a free copy exists without knowing where the file
 itself is.
 
@@ -225,7 +226,7 @@ data-fetching and persistence logic centralized, testable, and swappable.
 [OpenAlex](https://openalex.org) is a free, fully open scholarly index.
 Browsing it is keyless, but **as of October 2026 a free API key is required
 to page past the first page of results with `cursor=`** — without one a
-26-journal watchlist silently truncates to 100 articles.
+38-journal watchlist silently truncates to 100 articles.
 
 The key is therefore held server-side by the `/api/openalex/*` route
 (`src/app/api/openalex/[...path]/route.ts`) and never shipped to the browser:
@@ -510,7 +511,7 @@ touch Supabase directly.
 - **No push notifications or email digests** — this is a pull-based feed you
   check when you want to.
 - The 90-day retrieval window and per-request page caps are reasonable
-  defaults, not tuned against real traffic volume for all 26 journals at
+  defaults, not tuned against real traffic volume for all 38 journals at
   once.
 - OpenAlex's `type`/`is_retracted` classification (verified current as of
   2026-08-26) is itself imperfect — its July 2026 overhaul improved accuracy
@@ -521,7 +522,7 @@ touch Supabase directly.
 
 ## Journal source mapping status
 
-All 26 requested journals are in the catalog with print **and** online
+All 38 journals are in the catalog with print **and** online
 ISSNs cross-checked against multiple independent sources (the ISSN
 International Centre portal, publisher pages, Wikipedia) — no journal was
 dropped, and no OpenAlex Source ID was hand-typed or guessed anywhere in the
@@ -532,7 +533,7 @@ any journal OpenAlex doesn't return a match for is surfaced directly in the
 "Manage journals" dialog rather than silently dropped or faked.
 
 This live resolution step has now been exercised against the real API: a cold
-load resolved all 26 journals to OpenAlex Source IDs and returned 339
+load resolved all 38 journals to OpenAlex Source IDs and returned 339
 articles, with nothing flagged as unresolved in "Manage journals".
 
 ## Deploying to Vercel
