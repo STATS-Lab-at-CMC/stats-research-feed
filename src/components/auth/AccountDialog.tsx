@@ -13,8 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ZoteroKeySection } from "@/components/zotero/ZoteroKeySection";
+import { useDigestPreference } from "@/hooks/useDigestPreference";
 
 interface AccountDialogProps {
   open: boolean;
@@ -388,6 +390,61 @@ function SyncStatusLine() {
   );
 }
 
+/**
+ * Opt-in for the weekly email.
+ *
+ * Off until switched on, and the copy says what arriving mail will look like
+ * before anyone agrees to receive it — day, contents, and the fact that a
+ * quiet week still sends rather than going silent and looking broken.
+ */
+function DigestSection() {
+  const { enabled, status, error, setDigestEnabled } = useDigestPreference();
+  const busy = status === "loading" || status === "saving";
+
+  return (
+    <section className="space-y-2">
+      <h3 className="text-sm font-semibold text-foreground">Weekly digest</h3>
+
+      <label className="flex items-start justify-between gap-4">
+        <span className="space-y-0.5">
+          <span className="block text-sm text-muted-foreground">
+            A Monday-morning email with what was published in your journals over the previous
+            seven days — anything matching your keywords first, then grouped by journal.
+          </span>
+          <span className="block text-xs leading-relaxed text-muted-foreground">
+            Quiet weeks still send, with the count in the subject line, so silence always means
+            something is wrong rather than nothing being published.
+          </span>
+        </span>
+        <Switch
+          checked={enabled}
+          onCheckedChange={(next) => void setDigestEnabled(next)}
+          disabled={busy}
+          aria-label="Receive the weekly digest email"
+          className="mt-0.5 shrink-0"
+        />
+      </label>
+
+      {error && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+          {error}
+        </p>
+      )}
+
+      {enabled && !error && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Sent to <span className="font-medium text-foreground">the address you signed in with</span>.
+          Every digest also carries an unsubscribe link that works without signing in.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function AccountPanel({ onClose }: { onClose: () => void }) {
   const { email, signOut } = useAuth();
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
@@ -416,6 +473,10 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
       <Separator />
 
       <WhatSyncs />
+
+      <Separator />
+
+      <DigestSection />
 
       <Separator />
 
