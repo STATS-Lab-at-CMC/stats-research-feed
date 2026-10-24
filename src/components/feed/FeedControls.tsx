@@ -65,7 +65,14 @@ export function FeedControls({
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        {/*
+          `flex-wrap` is load-bearing on a phone. These buttons are
+          whitespace-nowrap and there can be four of them; without wrapping the
+          row is wider than a 375px viewport and pushes the whole page into
+          horizontal scroll — which is what was actually overflowing, measured,
+          rather than the journal select below it.
+        */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Hidden rather than disabled when nothing is unseen: a disabled
               control invites clicking to find out why. */}
           {markAllSeenCount > 0 && (

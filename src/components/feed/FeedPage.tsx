@@ -388,10 +388,14 @@ export function FeedPage() {
               variant="ghost"
               size="sm"
               onClick={() => setInfoOpen(true)}
-              className="shrink-0 gap-1.5 text-muted-foreground"
+              aria-label="About this feed"
+              className="shrink-0 gap-1.5 px-2 text-muted-foreground sm:px-3"
             >
               <Info className="h-3.5 w-3.5" />
-              About
+              {/* Label hidden on a phone: three labelled controls squeezed the
+                  title into three wrapped lines. The icon plus aria-label
+                  carries the same meaning in a third of the width. */}
+              <span className="hidden sm:inline">About</span>
             </Button>
           </div>
         </div>
