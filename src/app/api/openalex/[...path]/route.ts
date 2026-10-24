@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  ALLOWED_ENDPOINTS,
+  UPSTREAM_TIMEOUT_MS,
+  buildUpstreamUrl,
+  safeUpstreamError,
+} from "@/lib/openalex/upstream";
 
 /**
  * Server-side proxy to the OpenAlex REST API.
@@ -13,8 +19,10 @@ import { NextResponse } from "next/server";
  * The key could have been shipped as a `NEXT_PUBLIC_*` variable, but this is
  * a public site: anything in the browser bundle is readable by every visitor,
  * and an OpenAlex key is issued to a person and carries their daily budget.
- * So it stays here, server-side, exactly as `lib/openalex/client.ts` always
- * said the upgrade path should work.
+ * So it stays server-side, exactly as `lib/openalex/client.ts` always said the
+ * upgrade path should work. The key itself, and the allowlist that keeps this
+ * from being an open proxy, live in `lib/openalex/upstream.ts` — shared with
+ * the digest job, which calls OpenAlex from the server directly.
  *
  * ## Two incidental wins
  *
@@ -24,33 +32,7 @@ import { NextResponse } from "next/server";
  * - **Shared cache.** Identical upstream requests are cached at the CDN, so
  *   twenty readers with the same watchlist cost one upstream call instead of
  *   twenty. That matters because the budget is per key, not per reader.
- *
- * ## Not an open proxy
- *
- * Both the path and the query parameters are allowlisted. Without that, this
- * route would forward arbitrary paths to an arbitrary upstream on behalf of
- * anyone who found it.
  */
-
-const OPENALEX_BASE_URL = "https://api.openalex.org";
-const UPSTREAM_TIMEOUT_MS = 20_000;
-
-/** The only OpenAlex collections this app reads. */
-const ALLOWED_ENDPOINTS = new Set(["works", "sources"]);
-
-/** The only query parameters forwarded upstream. Anything else is dropped. */
-const ALLOWED_PARAMS = new Set([
-  "filter",
-  "search",
-  "sort",
-  "select",
-  "per-page",
-  "per_page",
-  "page",
-  "cursor",
-  "sample",
-  "seed",
-]);
 
 /**
  * How long the CDN may serve a cached copy. Source records (journal → OpenAlex
@@ -79,16 +61,13 @@ export async function GET(
     );
   }
 
-  const incoming = new URL(request.url).searchParams;
-  const upstream = new URL(`/${endpoint}`, OPENALEX_BASE_URL);
-  for (const [key, value] of incoming) {
-    if (ALLOWED_PARAMS.has(key)) upstream.searchParams.set(key, value);
+  const upstream = buildUpstreamUrl(endpoint, new URL(request.url).searchParams);
+  if (!upstream) {
+    return NextResponse.json(
+      { error: "Unsupported OpenAlex endpoint." },
+      { status: 404 },
+    );
   }
-
-  // Only now, after the allowlist pass, so a caller can never inject or
-  // override it from the query string.
-  const apiKey = process.env.OPENALEX_API_KEY?.trim();
-  if (apiKey) upstream.searchParams.set("api_key", apiKey);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
@@ -132,16 +111,5 @@ export async function GET(
     );
   } finally {
     clearTimeout(timeout);
-  }
-}
-
-/** Extracts OpenAlex's own error text, bounded so a huge body can't be relayed. */
-function safeUpstreamError(body: string): string | undefined {
-  try {
-    const parsed = JSON.parse(body) as { error?: string; message?: string };
-    const text = [parsed.error, parsed.message].filter(Boolean).join(" — ");
-    return text ? text.slice(0, 300) : undefined;
-  } catch {
-    return undefined;
   }
 }

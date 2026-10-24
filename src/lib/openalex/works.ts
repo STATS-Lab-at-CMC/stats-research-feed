@@ -1,5 +1,10 @@
 import type { Article } from "@/lib/types";
-import { openAlexGet, type OpenAlexListResponse, type OpenAlexWorkRecord } from "./client";
+import {
+  openAlexGet,
+  type OpenAlexGetter,
+  type OpenAlexListResponse,
+  type OpenAlexWorkRecord,
+} from "./client";
 import { dedupeArticles, normalizeOpenAlexWork } from "./normalize";
 
 /**
@@ -68,6 +73,14 @@ export async function fetchRecentWorksForSources(
   sourceIdByJournalId: Map<string, string>,
   journalNameByJournalId: Map<string, string>,
   windowDays: number,
+  /**
+   * How to issue each request. Defaults to the browser's proxied client; the
+   * weekly digest passes the server one, which holds the API key. Everything
+   * below — the chunking, the cursor loop, the page budget — is identical
+   * either way, which is the reason this is a parameter and not a second
+   * copy of this function.
+   */
+  get: OpenAlexGetter = openAlexGet,
 ): Promise<WorksFetchResult> {
   const journalIdBySourceId = new Map<string, string>();
   for (const [journalId, sourceId] of sourceIdByJournalId) {
@@ -91,7 +104,7 @@ export async function fetchRecentWorksForSources(
     const filter = `primary_location.source.id:${sourceIdChunk.join("|")},from_publication_date:${fromDate},${PUBLICATION_TYPE_FILTER}`;
     let cursor = "*";
     for (let page = 0; page < MAX_PAGES; page++) {
-      const result = await openAlexGet<OpenAlexListResponse<OpenAlexWorkRecord>>("/works", {
+      const result = await get<OpenAlexListResponse<OpenAlexWorkRecord>>("/works", {
         filter,
         sort: "publication_date:desc",
         "per-page": String(PER_PAGE),

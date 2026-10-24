@@ -1,7 +1,12 @@
 import { JOURNAL_CATALOG, type JournalDefinition } from "@/lib/journals/catalog";
 import { storage } from "@/lib/storage/localStorageAdapter";
 import { STORAGE_KEYS } from "@/lib/storage/keys";
-import { openAlexGet, type OpenAlexListResponse, type OpenAlexSourceRecord } from "./client";
+import {
+  openAlexGet,
+  type OpenAlexGetter,
+  type OpenAlexListResponse,
+  type OpenAlexSourceRecord,
+} from "./client";
 
 const SOURCE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // journal->source mappings barely ever change
 
@@ -83,6 +88,8 @@ function isFresh(entry: JournalSourceCacheEntry | undefined, now: number): entry
  */
 export async function resolveJournalSources(
   journals: JournalDefinition[] = JOURNAL_CATALOG,
+  /** See `fetchRecentWorksForSources`: the server passes its keyed fetcher. */
+  get: OpenAlexGetter = openAlexGet,
 ): Promise<SourceResolution> {
   const now = Date.now();
   const cache = readCache();
@@ -138,7 +145,7 @@ export async function resolveJournalSources(
   let fetchFailed = false;
   for (let i = 0; i < allIssns.length; i += ISSN_CHUNK_SIZE) {
     const issnChunk = allIssns.slice(i, i + ISSN_CHUNK_SIZE);
-    const result = await openAlexGet<OpenAlexListResponse<OpenAlexSourceRecord>>("/sources", {
+    const result = await get<OpenAlexListResponse<OpenAlexSourceRecord>>("/sources", {
       filter: `issn:${issnChunk.join("|")}`,
       "per-page": String(issnChunk.length),
       select: "id,display_name,issn_l,issn",

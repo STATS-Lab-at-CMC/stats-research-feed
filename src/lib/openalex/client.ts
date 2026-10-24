@@ -40,6 +40,18 @@ export type OpenAlexResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+/**
+ * The shape of a single OpenAlex GET. `openAlexGet` below is the browser's
+ * implementation (via this app's proxy); `serverFetch.ts` has the server's
+ * (straight to OpenAlex, with the API key). Functions that page or chunk
+ * requests take one of these rather than importing either directly, so that
+ * logic has one implementation instead of a per-environment copy.
+ */
+export type OpenAlexGetter = <T>(
+  path: string,
+  params: Record<string, string>,
+) => Promise<OpenAlexResult<T>>;
+
 // In-flight request de-duplication: if two callers ask for the exact same
 // URL (same path + params) while a request is already in flight, they share
 // one network call instead of issuing two. Keyed by the fully-built URL, so

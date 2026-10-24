@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CloudOff, KeyRound, Loader2, Mail, RefreshCw } from "lucide-react";
+import { AlertCircle, Check, CloudOff, Eye, KeyRound, Loader2, Mail, RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import type { Digest } from "@/lib/digest/compose";
+import { digestSubject, renderDigestHtml } from "@/lib/digest/render";
 import { ZoteroKeySection } from "@/components/zotero/ZoteroKeySection";
 import { useDigestPreference } from "@/hooks/useDigestPreference";
 
@@ -397,6 +400,122 @@ function SyncStatusLine() {
  * before anyone agrees to receive it — day, contents, and the fact that a
  * quiet week still sends rather than going silent and looking broken.
  */
+type PreviewState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "ready"; digest: Digest; html: string }
+  | { kind: "error"; message: string };
+
+/**
+ * Renders what this account's next digest would say, without sending it.
+ *
+ * The HTML is built in the browser from the same `render.ts` the send job
+ * uses, so this is the email rather than a mock-up of it. Only the digest
+ * *data* comes from the server, which is the part that needs the watchlist.
+ *
+ * The access token is read from the Supabase client at click time rather than
+ * held in React state or exposed on the auth context: it is a bearer
+ * credential, and the fewer places it sits the better.
+ */
+function DigestPreview() {
+  const [state, setState] = useState<PreviewState>({ kind: "idle" });
+
+  async function loadPreview() {
+    setState({ kind: "loading" });
+
+    const client = getSupabaseClient();
+    const { data } = (await client?.auth.getSession()) ?? { data: { session: null } };
+    const token = data.session?.access_token;
+    if (!token) {
+      setState({ kind: "error", message: "Your session expired. Sign in again to preview." });
+      return;
+    }
+
+    try {
+      // A fortnight rather than a week: the point of the preview is to see the
+      // layout with articles in it, and a single quiet week would show an
+      // empty email that reveals nothing about how a full one reads.
+      const response = await fetch("/api/digest/preview?format=json&days=14", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await response.json()) as { digest?: Digest; error?: string };
+
+      if (!response.ok || !body.digest) {
+        setState({ kind: "error", message: body.error ?? "Could not build a preview." });
+        return;
+      }
+
+      setState({
+        kind: "ready",
+        digest: body.digest,
+        html: renderDigestHtml(body.digest, { siteUrl: window.location.origin }),
+      });
+    } catch {
+      setState({ kind: "error", message: "Could not reach the server to build a preview." });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void loadPreview()}
+          disabled={state.kind === "loading"}
+        >
+          {state.kind === "loading" ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Building preview
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              Preview this email
+            </>
+          )}
+        </Button>
+        {state.kind === "ready" && (
+          <span className="text-xs text-muted-foreground">
+            Last 14 days, so the layout has something in it.
+          </span>
+        )}
+      </div>
+
+      {state.kind === "error" && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+          {state.message}
+        </p>
+      )}
+
+      {state.kind === "ready" && (
+        <div className="space-y-2">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Subject:{" "}
+            <span className="font-medium text-foreground">{digestSubject(state.digest)}</span>
+          </p>
+          {/*
+            `sandbox` with nothing enabled: this is email HTML being rendered
+            inside the app, so it gets no script execution, no same-origin
+            access and no navigation of the parent page.
+          */}
+          <iframe
+            title="Weekly digest preview"
+            srcDoc={state.html}
+            sandbox=""
+            className="h-80 w-full rounded-md border border-border bg-white"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DigestSection() {
   const { enabled, status, error, setDigestEnabled } = useDigestPreference();
   const busy = status === "loading" || status === "saving";
@@ -441,6 +560,8 @@ function DigestSection() {
           Every digest also carries an unsubscribe link that works without signing in.
         </p>
       )}
+
+      {!error && <DigestPreview />}
     </section>
   );
 }
