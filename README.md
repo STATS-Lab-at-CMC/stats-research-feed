@@ -388,6 +388,17 @@ configuration at all, but two optional environment variables matter (see
 | `OPENALEX_API_KEY` | The feed caps at the first 100 results, with a banner saying so. OpenAlex gates cursor paging behind a key, so this is **strongly recommended** — it is free and takes a minute. Note there is no `NEXT_PUBLIC_` prefix: it is read server-side only. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `..._ANON_KEY` | No accounts, no cross-device sync, and no Zotero export (which is account-gated). Everything else works, saved in the browser. |
 
+The weekly digest needs four more, all server-side. Leave them unset and the
+digest simply never sends; everything else is unaffected.
+
+| Variable | What it is for |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Lets the Monday job read every subscriber's watchlist. **Bypasses row-level security entirely** — it belongs in Vercel's environment variables and nowhere else. Never in this repo, never in a `NEXT_PUBLIC_` variable, never in a browser. |
+| `CRON_SECRET` | Vercel sends this as a bearer token when it triggers the cron. The route refuses every request without it, including when the variable is unset — the send URL is public, so this is the only thing standing between a guessed path and mailing every subscriber. |
+| `RESEND_API_KEY` | Sends the mail. Worth a separate key named for the digest, so it can be revoked without taking sign-in email down with it. |
+| `DIGEST_FROM_EMAIL` | The From address, e.g. `STATS Research Feed <digest@your-domain.edu>`. Must be on a domain verified in Resend. |
+| `DIGEST_UNSUBSCRIBE_SECRET` | Signs unsubscribe links so they work without signing in. Any long random string; `openssl rand -base64 32` is fine. Without it the emails fall back to "manage in your account", which is worse for deliverability. |
+
 Turning on accounts takes about 15 minutes — see
 [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md). Note that the auth email templates in
 [`supabase/email-templates/`](supabase/email-templates/) are **not optional for
@@ -614,9 +625,40 @@ To enable accounts on a deployment, add `NEXT_PUBLIC_SUPABASE_URL` and
 origin's `/auth/confirm` to Supabase's redirect allowlist — see
 [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) step 6.
 
+### The weekly digest
+
+[`vercel.json`](vercel.json) schedules `/api/cron/digest` for `0 14 * * 1` —
+Mondays at 14:00 UTC, which is 7am Pacific in summer and 6am in winter. Vercel's
+Hobby plan triggers cron jobs within the hour rather than to the minute, which
+is immaterial for a weekly email.
+
+Three things are worth knowing before switching it on:
+
+- **It will not send until every variable above is set.** Missing ones produce
+  a 503 from the cron route with the specific variable named, rather than a
+  silent no-op.
+- **A send cannot duplicate.** `user_settings.last_digest_sent_at` is both the
+  window boundary and the idempotency guard: a subscriber mailed within the
+  last six days is skipped, so a retry, a redeploy, or a manual trigger cannot
+  produce a second copy. It advances only after Resend accepts the message, so
+  a failure means next week covers the gap rather than losing it.
+- **Test it before the first Monday.** Sign in, open Account → Weekly digest,
+  and use *Preview this email* to check the content and *Send me one now* to
+  check it actually arrives. The test send goes only to the signed-in address
+  and does not advance anything, so it cannot cancel a real digest.
+
+A dry run against every subscriber, composing but sending nothing:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" \
+  "https://your-deployment.vercel.app/api/cron/digest?dryRun=1"
+```
+
 ## Roadmap ideas
 
-- Optional email/weekly-digest summaries of new articles
+- Thematic grouping in the digest, instead of grouping by journal. The current
+  version does no inference at all, which is cheap, instant and never wrong;
+  anything smarter should be measured against it rather than assumed better.
 - Author-level or topic-level following, once OpenAlex's topic metadata is
   reliably populated across these journals
 - Choosing a destination Zotero collection, rather than the library root

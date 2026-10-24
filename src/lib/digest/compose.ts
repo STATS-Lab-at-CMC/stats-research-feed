@@ -123,9 +123,20 @@ export function journalsFor(recipient: DigestRecipient): JournalDefinition[] {
  * reader, so one Monday costs one set of OpenAlex requests rather than one set
  * per subscriber.
  */
+export interface ComposeOptions {
+  now?: Date;
+  /** Pre-fetched articles, from a shared fetch across all subscribers. */
+  articles?: Article[];
+  /** Journal ids that shared fetch could not resolve, so this digest can still say so. */
+  unresolvedJournalIds?: string[];
+  /** Whether that shared fetch finished. Carried through rather than assumed. */
+  incomplete?: boolean;
+  incompleteReason?: string;
+}
+
 export async function composeDigest(
   recipient: DigestRecipient,
-  options: { now?: Date; articles?: Article[] } = {},
+  options: ComposeOptions = {},
 ): Promise<Digest> {
   const now = options.now ?? new Date();
   const windowDays = windowDaysFor(recipient.lastSentAt, now);
@@ -157,6 +168,17 @@ export async function composeDigest(
   if (options.articles) {
     const followedIds = new Set(journals.map((j) => j.id));
     articles = options.articles.filter((a) => followedIds.has(a.journalId));
+
+    // Only this reader's own unresolved journals: the shared fetch reports
+    // them across everyone's watchlists, and naming a journal someone does
+    // not follow in their email would be baffling.
+    const nameById = new Map(journals.map((j) => [j.id, j.name]));
+    unresolvedJournalNames = (options.unresolvedJournalIds ?? [])
+      .filter((id) => followedIds.has(id))
+      .map((id) => nameById.get(id) ?? id);
+
+    incomplete = options.incomplete ?? false;
+    incompleteReason = options.incompleteReason;
   } else {
     const { sourceIdByJournalId, unresolvedJournalIds } = await resolveJournalSources(
       journals,

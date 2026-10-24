@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, CloudOff, Eye, KeyRound, Loader2, Mail, RefreshCw } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CloudOff,
+  Eye,
+  KeyRound,
+  Loader2,
+  Mail,
+  RefreshCw,
+  Send,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -400,6 +410,103 @@ function SyncStatusLine() {
  * before anyone agrees to receive it — day, contents, and the fact that a
  * quiet week still sends rather than going silent and looking broken.
  */
+type TestSendState =
+  | { kind: "idle" }
+  | { kind: "sending" }
+  | { kind: "sent"; to: string; articleCount: number }
+  | { kind: "error"; message: string };
+
+/**
+ * Sends one real digest to the signed-in address.
+ *
+ * The preview proves the email is right; this proves it arrives, which is a
+ * different question and the one that university mail gateways tend to answer
+ * badly. Sending to yourself is the only honest test of it, and the endpoint
+ * will not send anywhere else.
+ */
+function DigestTestSend() {
+  const [state, setState] = useState<TestSendState>({ kind: "idle" });
+
+  async function send() {
+    setState({ kind: "sending" });
+
+    const client = getSupabaseClient();
+    const { data } = (await client?.auth.getSession()) ?? { data: { session: null } };
+    const token = data.session?.access_token;
+    if (!token) {
+      setState({ kind: "error", message: "Your session expired. Sign in again." });
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/digest/test-send", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await response.json()) as {
+        sentTo?: string;
+        articleCount?: number;
+        error?: string;
+      };
+
+      if (!response.ok || !body.sentTo) {
+        setState({ kind: "error", message: body.error ?? "Could not send that." });
+        return;
+      }
+
+      setState({
+        kind: "sent",
+        to: body.sentTo,
+        articleCount: body.articleCount ?? 0,
+      });
+    } catch {
+      setState({ kind: "error", message: "Could not reach the server." });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => void send()}
+        disabled={state.kind === "sending"}
+      >
+        {state.kind === "sending" ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Sending
+          </>
+        ) : (
+          <>
+            <Send className="h-4 w-4" aria-hidden="true" />
+            Send me one now
+          </>
+        )}
+      </Button>
+
+      {state.kind === "sent" && (
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />
+          Sent to {state.to} &mdash; {state.articleCount}{" "}
+          {state.articleCount === 1 ? "article" : "articles"}. This does not affect your
+          Monday digest.
+        </p>
+      )}
+
+      {state.kind === "error" && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+          {state.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 type PreviewState =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -561,7 +668,12 @@ function DigestSection() {
         </p>
       )}
 
-      {!error && <DigestPreview />}
+      {!error && (
+        <div className="space-y-3">
+          <DigestPreview />
+          <DigestTestSend />
+        </div>
+      )}
     </section>
   );
 }
