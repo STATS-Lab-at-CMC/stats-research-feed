@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { bearerToken, createUserScopedClient } from "@/lib/supabase/serverClient";
 import { createAdminClient } from "@/lib/supabase/adminClient";
 import { runDigest } from "@/lib/digest/run";
-import { isDigestSendConfigured } from "@/lib/digest/send";
+import { missingSendConfig } from "@/lib/digest/send";
 
 /**
  * Sends this week's digest to the caller, and only to the caller.
@@ -47,11 +47,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That session is not valid." }, { status: 401 });
   }
 
-  if (!isDigestSendConfigured()) {
+  const missing = missingSendConfig();
+  if (missing.length > 0) {
     return NextResponse.json(
       {
-        error:
-          "Sending is not set up on this deployment yet — RESEND_API_KEY and DIGEST_FROM_EMAIL are missing.",
+        error: `Sending is not set up on this deployment yet. Missing in Vercel: ${missing.join(
+          ", ",
+        )}. Remember that environment variables only take effect on a new deployment.`,
       },
       { status: 503 },
     );

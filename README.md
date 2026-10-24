@@ -650,9 +650,17 @@ Three things are worth knowing before switching it on:
 A dry run against every subscriber, composing but sending nothing:
 
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" \
+curl -H "Authorization: Bearer PASTE_THE_CRON_SECRET_HERE" \
   "https://your-deployment.vercel.app/api/cron/digest?dryRun=1"
 ```
+
+Paste the literal secret, not `$CRON_SECRET`. The variable is set in Vercel,
+not in your shell, so `$CRON_SECRET` expands to nothing locally and the route
+answers `{"error":"Unauthorized."}` — which looks exactly like a wrong secret.
+
+Signed in on the site, `GET /api/digest/status` reports which digest variables
+this deployment actually has (names only, never values) along with anything
+about your own account that would stop a send.
 
 ## Roadmap ideas
 

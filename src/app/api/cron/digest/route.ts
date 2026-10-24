@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/adminClient";
 import { runDigest } from "@/lib/digest/run";
-import { isDigestSendConfigured } from "@/lib/digest/send";
+import { missingSendConfig } from "@/lib/digest/send";
 
 /**
  * The Monday job. The only thing in this codebase that sends email unprompted.
@@ -66,9 +66,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1";
 
-  if (!dryRun && !isDigestSendConfigured()) {
+  const missing = missingSendConfig();
+  if (!dryRun && missing.length > 0) {
     return NextResponse.json(
-      { error: "Set RESEND_API_KEY and DIGEST_FROM_EMAIL before the digest can send." },
+      { error: `Cannot send: ${missing.join(", ")} not set on this deployment.` },
       { status: 503 },
     );
   }

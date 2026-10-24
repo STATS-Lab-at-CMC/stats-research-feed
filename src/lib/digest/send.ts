@@ -39,9 +39,22 @@ export type SendResult =
   | { ok: true; id: string | null }
   | { ok: false; error: string };
 
+/**
+ * Which send-related variables are missing, by name.
+ *
+ * Returns names rather than a bare boolean because "sending is not
+ * configured" is a useless thing to read when five variables could be the
+ * cause and the deployment dashboard is in another tab. Names only — never
+ * values, and never whether a value looks valid.
+ */
+export function missingSendConfig(): string[] {
+  const required = ["RESEND_API_KEY", "DIGEST_FROM_EMAIL"] as const;
+  return required.filter((name) => !process.env[name]?.trim());
+}
+
 /** Whether this deployment can send at all. */
 export function isDigestSendConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.DIGEST_FROM_EMAIL?.trim());
+  return missingSendConfig().length === 0;
 }
 
 export async function sendDigestEmail(args: SendDigestArgs): Promise<SendResult> {

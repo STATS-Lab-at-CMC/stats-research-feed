@@ -414,7 +414,7 @@ type TestSendState =
   | { kind: "idle" }
   | { kind: "sending" }
   | { kind: "sent"; to: string; articleCount: number }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; blockers?: string[] };
 
 /**
  * Sends one real digest to the signed-in address.
@@ -450,7 +450,21 @@ function DigestTestSend() {
       };
 
       if (!response.ok || !body.sentTo) {
-        setState({ kind: "error", message: body.error ?? "Could not send that." });
+        // A failed send is where someone most needs to know *why*, and the
+        // reasons are spread across deployment config and their own account.
+        // Ask for the full picture rather than making them go looking.
+        const blockers = await fetch("/api/digest/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((s) => (s?.blockers as string[] | undefined)?.filter(Boolean))
+          .catch(() => undefined);
+
+        setState({
+          kind: "error",
+          message: body.error ?? "Could not send that.",
+          blockers: blockers && blockers.length > 0 ? blockers : undefined,
+        });
         return;
       }
 
@@ -495,13 +509,22 @@ function DigestTestSend() {
       )}
 
       {state.kind === "error" && (
-        <p
+        <div
           role="alert"
-          className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
+          className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-2.5 text-sm text-foreground"
         >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
-          {state.message}
-        </p>
+          <p className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+            {state.message}
+          </p>
+          {state.blockers && (
+            <ul className="ml-6 list-disc space-y-1 text-xs text-muted-foreground">
+              {state.blockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
