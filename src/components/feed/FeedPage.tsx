@@ -366,9 +366,15 @@ export function FeedPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-start justify-between gap-4 px-4 py-4">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
+        {/*
+          `min-w-0` on the title column: without it a flex item will not shrink
+          below its content width, so a long title plus three fixed-width
+          controls overflowed the row on narrow screens. `gap-3` rather than
+          `gap-4` buys back a little more of that width on a phone.
+        */}
+        <div className="mx-auto flex max-w-3xl items-start justify-between gap-3 px-4 py-4 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
               I-O/Quant Psych Research Feed
             </h1>
             <p className="text-sm text-muted-foreground">

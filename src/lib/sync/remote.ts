@@ -80,7 +80,21 @@ export async function pullRemoteState(
 ): Promise<RemoteState> {
   const settingsPromise = client
     .from("user_settings")
-    .select("followed_journal_ids, keywords")
+    /*
+     * `*` rather than naming columns, deliberately.
+     *
+     * PostgREST rejects the whole query with a 400 if any named column is
+     * missing, so naming a column that a pending migration has not added yet
+     * does not degrade that one feature — it fails the settings read, which
+     * fails the entire pull, which takes watchlist, seen and saved down with
+     * it. That happened: shipping the keywords column reference before
+     * 0004_keywords.sql was applied broke all syncing for signed-in readers.
+     *
+     * Selecting everything means a column that does not exist yet simply
+     * arrives undefined and that slice falls back to its default, which is the
+     * behaviour a migration lag should have.
+     */
+    .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 

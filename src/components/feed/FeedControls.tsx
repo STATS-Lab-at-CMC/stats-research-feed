@@ -126,11 +126,22 @@ export function FeedControls({
           ))}
         </div>
 
-        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        {/*
+          A native select sizes itself to its widest option, and the widest here
+          is "Organizational Behavior and Human Decision Processes". Unconstrained
+          that is wider than a phone, so it pushed the whole page into horizontal
+          overflow — which is also why the header's left padding looked wrong: the
+          page could scroll sideways out from under it.
+
+          Full width on mobile, capped on larger screens. `min-w-0` is what
+          actually lets it shrink; a flex item defaults to min-width:auto and
+          would otherwise refuse to go below its content width.
+        */}
+        <label className="flex w-full min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground sm:w-auto">
           <select
             value={journalFilter}
             onChange={(e) => onJournalFilterChange(e.target.value)}
-            className="h-8 rounded-md border border-input bg-card px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-full min-w-0 truncate rounded-md border border-input bg-card py-0 pl-2.5 pr-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[16rem]"
             aria-label="Filter by journal"
           >
             <option value="all">All journals</option>
@@ -146,7 +157,7 @@ export function FeedControls({
           <select
             value={filters.sort}
             onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as FeedFilterState["sort"] })}
-            className="h-8 rounded-md border border-input bg-card px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 max-w-full rounded-md border border-input bg-card py-0 pl-2.5 pr-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Sort order"
           >
             <option value="newest">Newest first</option>
