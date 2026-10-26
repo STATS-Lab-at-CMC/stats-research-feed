@@ -502,6 +502,7 @@ export function FeedPage() {
                       onToggleBookmark={() => bookmarks.toggleBookmark(article)}
                       isContinueTarget={highlightedArticleId === article.id}
                       highlightPattern={keywords.highlightPattern}
+                      matchPattern={keywordsOnly || keywords.highlight ? keywords.pattern : null}
                     />
                   ))}
                 </div>

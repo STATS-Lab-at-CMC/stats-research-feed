@@ -39,6 +39,19 @@ export interface Article {
   lastPage: string | null;
   /** OpenAlex's own publication year, which can differ from `publicationDate`'s. */
   publicationYear: number | null;
+  /**
+   * OpenAlex's own index terms for this work — "work engagement",
+   * "job demands-resources model", and so on. Present on effectively every
+   * article in these journals, about eight apiece.
+   *
+   * Worth carrying because they are searchable surface the reader cannot see:
+   * roughly 6% of articles arrive with no abstract at all, and for those the
+   * title was previously the only thing a keyword could match against.
+   *
+   * May be absent on an article restored from an older saved snapshot, hence
+   * every read site treating it as optional.
+   */
+  keywords: string[];
   source: "openalex" | "demo";
 }
 

@@ -35,7 +35,7 @@ const MAX_PAGES = 10;
  */
 const SOURCE_ID_CHUNK_SIZE = 40;
 const WORK_SELECT_FIELDS =
-  "id,doi,title,display_name,publication_date,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index,type,is_retracted,biblio,publication_year";
+  "id,doi,title,display_name,publication_date,authorships,primary_location,best_oa_location,open_access,abstract_inverted_index,type,is_retracted,biblio,publication_year,keywords";
 
 /**
  * Publication-quality filter, applied server-side. Verified against

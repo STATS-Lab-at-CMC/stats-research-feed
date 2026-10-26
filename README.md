@@ -110,6 +110,23 @@ filter down to just the articles that match. Empty by default: keywords are
 specific to someone's own research, and a starting set would be guessing at
 their field.
 
+Matching also covers **OpenAlex's own index terms** for each article, which
+are present on effectively every article here, about eight apiece. This
+catches papers whose title and abstract never use your word: searching
+"leadership" over a recent fortnight finds 62 articles, 8 of which say
+"leadership" nowhere in their text and surface only through terms like
+`humor in leadership` or `exploitative leadership`. It also matters for the
+~6% of articles OpenAlex has no abstract for, where the title was previously
+the only thing to match against. Those 8 carry a **"Matched on"** note naming
+the term responsible — shown only when nothing in the title or abstract is
+highlighted, so a result never appears without a visible reason.
+
+OpenAlex `topics` are deliberately *not* matched. They are a coarse taxonomy,
+so the single topic "Workaholism, burnout, and well-being" would make every
+paper carrying it answer to both "burnout" and "well-being" — including papers
+about commuting and about playful work design. That is a subject-area browse,
+not a keyword filter.
+
 Matching is on **word boundaries**, not substrings, because the terms
 researchers actually save are the ones substring matching ruins. On the live
 feed, "calling" as a substring hits 5 places; three are the construct and two

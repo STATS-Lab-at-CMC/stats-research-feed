@@ -79,7 +79,7 @@ function formatAuthors(authors: string[]): string {
   return `${authors.slice(0, 3).join(", ")}, et al.`;
 }
 
-function articleHtml(article: Article): string {
+function articleHtml(article: Article, matchedOn?: string[]): string {
   const title = escapeHtml(article.title);
   const href = article.articleUrl ? escapeHtml(article.articleUrl) : null;
   const titleHtml = href
@@ -95,11 +95,21 @@ function articleHtml(article: Article): string {
     ? ` <a href="${escapeHtml(article.pdfUrl)}" style="color:${ACCENT};text-decoration:none">PDF</a>`
     : "";
 
+  // Only present when neither the title nor the abstract contains the
+  // reader's term, so the entry would otherwise look misfiled.
+  const matched =
+    matchedOn && matchedOn.length > 0
+      ? `<div style="margin-top:2px;font-size:12px;color:${FAINT}">Matched on ${escapeHtml(
+          matchedOn.join(", "),
+        )}</div>`
+      : "";
+
   return `
       <tr>
         <td style="padding:0 0 14px 0;font-size:14px;line-height:1.45;color:${INK}">
           ${titleHtml}
           <div style="margin-top:3px;font-size:12px;color:${MUTED}">${meta}${pdf}</div>
+          ${matched}
         </td>
       </tr>`;
 }
@@ -139,7 +149,9 @@ export function renderDigestHtml(digest: Digest, options: RenderOptions): string
         "Matching your keywords",
         digest.keywords.join(", "),
       ),
-      ...digest.keywordMatches.map(articleHtml),
+      ...digest.keywordMatches.map((article) =>
+        articleHtml(article, digest.matchReasons[article.id]),
+      ),
     );
   }
 
@@ -151,7 +163,7 @@ export function renderDigestHtml(digest: Digest, options: RenderOptions): string
         group.journalName,
         `${group.articles.length} ${group.articles.length === 1 ? "article" : "articles"}`,
       ),
-      ...shown.map(articleHtml),
+      ...shown.map((article) => articleHtml(article)),
     );
     if (remaining > 0) {
       sections.push(`
@@ -272,6 +284,8 @@ export function renderDigestText(digest: Digest, options: RenderOptions): string
       .filter(Boolean)
       .join(" | ");
     if (meta) lines.push(`  ${meta}`);
+    const matchedOn = digest.matchReasons[article.id];
+    if (matchedOn?.length) lines.push(`  Matched on ${matchedOn.join(", ")}`);
     if (article.articleUrl) lines.push(`  ${article.articleUrl}`);
     if (article.pdfUrl) lines.push(`  PDF: ${article.pdfUrl}`);
     lines.push("");

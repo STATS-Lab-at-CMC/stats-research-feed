@@ -7,12 +7,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatApaCitation } from "@/lib/citation/apa";
 import { HighlightedText } from "./HighlightedText";
+import { matchIsIndexTermOnly, matchedIndexTerms } from "@/lib/keywords/match";
 import { formatPublicationDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
 interface ArticleCardProps {
   /** Compiled keyword regex, or null when highlighting is off. */
   highlightPattern?: RegExp | null;
+  /**
+   * Compiled keyword regex for *explaining* a match, which is a different
+   * question from whether to highlight one.
+   *
+   * Set whenever the reader is actively using their keywords — filtering to
+   * matches, or highlighting them — because in both cases they want to know
+   * why an article is in front of them. Highlighting can be off while
+   * filtering is on, and that is precisely the case where nothing else on
+   * the card accounts for the article being there.
+   */
+  matchPattern?: RegExp | null;
   article: Article;
   isSeen: boolean;
   isNew: boolean;
@@ -92,6 +104,7 @@ export function ArticleCard({
   onToggleBookmark,
   isContinueTarget = false,
   highlightPattern,
+  matchPattern,
 }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -143,6 +156,27 @@ export function ArticleCard({
       </h3>
 
       <p className="mt-1 text-sm text-muted-foreground">{formatAuthors(article.authors)}</p>
+
+      {/*
+        Shown only when the article matched on an OpenAlex index term and
+        nothing in the title or abstract — so there is no highlight anywhere
+        and no visible reason the article is in a filtered list. Showing these
+        on every match would be noise; showing them here is the difference
+        between a result that looks explicable and one that looks like a bug.
+      */}
+      {matchIsIndexTermOnly(article, matchPattern ?? null) && (
+        <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <span>Matched on</span>
+          {matchedIndexTerms(article, matchPattern ?? null).map((term) => (
+            <span
+              key={term}
+              className="rounded bg-secondary/10 px-1.5 py-0.5 font-medium text-foreground"
+            >
+              {term}
+            </span>
+          ))}
+        </p>
+      )}
 
       <div className="mt-2">
         {article.abstract ? (

@@ -108,6 +108,17 @@ export function normalizeOpenAlexWork(
     firstPage: cleanText(work.biblio?.first_page),
     lastPage: cleanText(work.biblio?.last_page),
     publicationYear: work.publication_year ?? null,
+    /*
+     * Kept whole, with no score threshold. OpenAlex scores these 0.30 to 1.00
+     * and the low end is still specific and correct — dropping a term at 0.35
+     * would be a false negative for the one reader who searches exactly that.
+     * These are precise phrases rather than a broad taxonomy, so there is
+     * little noise to filter, and a threshold is a number nobody would ever
+     * tune. One line to add here if that turns out to be wrong.
+     */
+    keywords: (work.keywords ?? [])
+      .map((keyword) => cleanText(keyword.display_name))
+      .filter((name): name is string => Boolean(name)),
     source: "openalex",
   };
 }

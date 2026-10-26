@@ -191,6 +191,13 @@ export interface OpenAlexWorkRecord {
     last_page?: string | null;
   } | null;
   publication_year?: number | null;
+  /**
+   * OpenAlex's index terms, each scored 0-1 for how strongly it applies.
+   * Distinct from `concepts`, which is the older taxonomy and disambiguates
+   * badly in this field — it labels organisational-behaviour papers with
+   * "Work (physics)" and "Dynamics (music)". Keywords do not.
+   */
+  keywords?: { display_name?: string | null; score?: number | null }[] | null;
 }
 
 export interface OpenAlexListResponse<T> {

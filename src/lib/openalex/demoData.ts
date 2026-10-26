@@ -18,6 +18,12 @@ interface DemoSeed {
   isOpenAccess: boolean | null;
   abstract: string | null;
   doi: string | null;
+  /**
+   * Stand-ins for OpenAlex's index terms, so the keyword filter and the
+   * matched-keyword chips behave the same way on the demo path as on live
+   * data. Invented like everything else here.
+   */
+  keywords: string[];
 }
 
 const DEMO_SEEDS: DemoSeed[] = [
@@ -30,6 +36,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "This is placeholder demo content, not a real study. It illustrates how a recent, open-access article would appear in the feed, including a short abstract preview.",
     doi: "10.0000/demo.0001",
+    keywords: ["onboarding", "turnover intentions", "remote work", "organizational socialization"],
   },
   {
     daysAgo: 2,
@@ -40,6 +47,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Represents a closed-access article card, showing how the feed handles articles without full-text availability.",
     doi: "10.0000/demo.0002",
+    keywords: ["psychological safety", "hybrid work", "team effectiveness"],
   },
   {
     daysAgo: 4,
@@ -50,6 +58,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content used only when live OpenAlex data is unavailable. Demonstrates multi-author byline rendering.",
     doi: "10.0000/demo.0003",
+    keywords: ["leader humility", "employee voice", "virtual teams", "leadership"],
   },
   {
     daysAgo: 6,
@@ -59,6 +68,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     isOpenAccess: null,
     abstract: null,
     doi: null,
+    keywords: ["calling", "burnout", "career development", "latent growth modeling"],
   },
   {
     daysAgo: 9,
@@ -69,6 +79,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Shows how the card renders when open-access status is confirmed but a DOI is missing.",
     doi: null,
+    keywords: ["algorithmic management", "organizational justice", "fairness perceptions"],
   },
   {
     daysAgo: 12,
@@ -79,6 +90,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content illustrating a moderately older, closed-access article within the current month grouping.",
     doi: "10.0000/demo.0006",
+    keywords: ["decision fatigue", "ethical decision making", "self-regulation"],
   },
   {
     daysAgo: 18,
@@ -89,6 +101,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Demonstrates a single-author byline with open-access status confirmed.",
     doi: "10.0000/demo.0007",
+    keywords: ["pay transparency", "applicant attraction", "trust", "compensation"],
   },
   {
     daysAgo: 24,
@@ -99,6 +112,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content used for fallback rendering. Represents an article nearing the end of the 'earlier this month' grouping window.",
     doi: "10.0000/demo.0008",
+    keywords: ["micro-breaks", "recovery experiences", "task performance", "work engagement"],
   },
   {
     daysAgo: 33,
@@ -109,6 +123,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Falls into the 'older' grouping bucket to demonstrate chronological sectioning.",
     doi: "10.0000/demo.0009",
+    keywords: ["coordination", "organizational design", "platform organizations"],
   },
   {
     daysAgo: 41,
@@ -118,6 +133,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     isOpenAccess: true,
     abstract: null,
     doi: "10.0000/demo.0010",
+    keywords: ["mentoring", "onboarding", "work engagement", "newcomer adjustment"],
   },
   {
     daysAgo: 52,
@@ -128,6 +144,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Illustrates an older open-access record still within the 90-day window.",
     doi: "10.0000/demo.0011",
+    keywords: ["understaffing", "emotional exhaustion", "job demands", "frontline employees"],
   },
   {
     daysAgo: 61,
@@ -138,6 +155,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content demonstrating a closed-access, older article for filter testing.",
     doi: "10.0000/demo.0012",
+    keywords: ["structured interviews", "adverse impact", "personnel selection", "measurement"],
   },
   {
     daysAgo: 70,
@@ -148,6 +166,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content. Used to populate search and filter demonstrations with older records.",
     doi: "10.0000/demo.0013",
+    keywords: ["gamification", "applicant reactions", "cross-cultural", "selection assessment"],
   },
   {
     daysAgo: 79,
@@ -158,6 +177,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content near the edge of the 90-day retrieval window.",
     doi: "10.0000/demo.0014",
+    keywords: ["shift work", "sleep", "employee well-being", "schedule control"],
   },
   {
     daysAgo: 86,
@@ -168,6 +188,7 @@ const DEMO_SEEDS: DemoSeed[] = [
     abstract:
       "Placeholder demo content representing a review-style article near the oldest edge of the retrieval window.",
     doi: "10.0000/demo.0015",
+    keywords: ["person-organization fit", "systematic review", "values congruence"],
   },
 ];
 
@@ -196,6 +217,7 @@ export function getDemoArticles(): Article[] {
     firstPage: null,
     lastPage: null,
     publicationYear: null,
+    keywords: seed.keywords,
     source: "demo",
   }));
 }

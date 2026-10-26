@@ -39,9 +39,21 @@ export function buildKeywordPattern(keywords: string[]): RegExp | null {
 /**
  * Which of an article's fields a keyword hit, if any.
  *
- * Title and abstract only. Author names are excluded deliberately: a term like
- * "Lee" or "Wang" would match constantly and drown the signal, and following a
- * person is a different feature from following a topic.
+ * Title, abstract, and OpenAlex's own index terms. Author names are excluded
+ * deliberately: a term like "Lee" or "Wang" would match constantly and drown
+ * the signal, and following a person is a different feature from following a
+ * topic.
+ *
+ * The index terms matter most where they are the only thing available —
+ * roughly 6% of articles arrive from OpenAlex with no abstract, and until now
+ * those could only ever be matched on their title.
+ *
+ * OpenAlex `topics` are deliberately *not* matched. They are a coarse
+ * taxonomy, so the single topic "Workaholism, burnout, and well-being" would
+ * make every paper carrying it answer to both "burnout" and "well-being" —
+ * including papers about commuting and about playful work design. That is a
+ * subject-area browse, not a keyword filter, and folding it in silently would
+ * flood the result with things the reader did not ask for.
  */
 export function articleMatchesKeywords(article: Article, pattern: RegExp | null): boolean {
   if (!pattern) return false;
@@ -50,7 +62,41 @@ export function articleMatchesKeywords(article: Article, pattern: RegExp | null)
   pattern.lastIndex = 0;
   if (pattern.test(article.title)) return true;
   pattern.lastIndex = 0;
-  return article.abstract ? pattern.test(article.abstract) : false;
+  if (article.abstract && pattern.test(article.abstract)) return true;
+  return matchedIndexTerms(article, pattern).length > 0;
+}
+
+/**
+ * The article's own OpenAlex keywords that the reader's terms hit.
+ *
+ * Exists so a match can be *shown*. An article matching only on an index term
+ * has nothing highlighted in its title or abstract, so without this the
+ * reader sees a result in a filtered list with no visible reason for being
+ * there — which reads as a bug rather than as a feature working.
+ *
+ * `keywords` is optional at runtime despite the type: an article restored
+ * from a saved snapshot written before this field existed will not have one.
+ */
+export function matchedIndexTerms(article: Article, pattern: RegExp | null): string[] {
+  if (!pattern) return [];
+  return (article.keywords ?? []).filter((keyword) => {
+    pattern.lastIndex = 0;
+    return pattern.test(keyword);
+  });
+}
+
+/**
+ * True when the *only* thing linking this article to the reader's terms is an
+ * index term — nothing in the title or abstract to highlight. This is the
+ * case, and the only case, where the match needs explaining in the UI.
+ */
+export function matchIsIndexTermOnly(article: Article, pattern: RegExp | null): boolean {
+  if (!pattern) return false;
+  pattern.lastIndex = 0;
+  if (pattern.test(article.title)) return false;
+  pattern.lastIndex = 0;
+  if (article.abstract && pattern.test(article.abstract)) return false;
+  return matchedIndexTerms(article, pattern).length > 0;
 }
 
 export interface TextSegment {

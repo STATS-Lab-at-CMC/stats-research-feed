@@ -16,7 +16,12 @@
 import type { Article } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { JOURNAL_CATALOG } from "@/lib/journals/catalog";
-import { buildKeywordPattern, articleMatchesKeywords } from "@/lib/keywords/match";
+import {
+  buildKeywordPattern,
+  articleMatchesKeywords,
+  matchIsIndexTermOnly,
+  matchedIndexTerms,
+} from "@/lib/keywords/match";
 import { resolveJournalSources } from "@/lib/openalex/sources";
 import { fetchRecentWorksForSources } from "@/lib/openalex/works";
 import { serverOpenAlexGet } from "@/lib/openalex/serverFetch";
@@ -62,6 +67,13 @@ export interface Digest {
   totalCount: number;
   /** Articles matching the reader's keywords, newest first. Empty if they have none. */
   keywordMatches: Article[];
+  /**
+   * For articles matched only on an OpenAlex index term, the terms that did
+   * it, keyed by article id. An email cannot be inspected the way a page can,
+   * so an entry whose title and abstract say nothing about the reader's
+   * keywords needs to carry its own explanation.
+   */
+  matchReasons: Record<string, string[]>;
   keywords: string[];
   /**
    * The rest, by journal, busiest journal first.
@@ -152,6 +164,7 @@ export async function composeDigest(
     windowDays,
     totalCount: 0,
     keywordMatches: [],
+    matchReasons: {},
     keywords,
     groups: [],
     unresolvedJournalNames: [],
@@ -219,6 +232,13 @@ export async function composeDigest(
     ? inWindow.filter((article) => articleMatchesKeywords(article, pattern))
     : [];
 
+  const matchReasons: Record<string, string[]> = {};
+  for (const article of keywordMatches) {
+    if (matchIsIndexTermOnly(article, pattern)) {
+      matchReasons[article.id] = matchedIndexTerms(article, pattern);
+    }
+  }
+
   const liftedIds = new Set(keywordMatches.map((article) => article.id));
 
   const byJournal = new Map<string, DigestGroup>();
@@ -245,6 +265,7 @@ export async function composeDigest(
     windowDays,
     totalCount: inWindow.length,
     keywordMatches,
+    matchReasons,
     keywords,
     groups,
     unresolvedJournalNames,
