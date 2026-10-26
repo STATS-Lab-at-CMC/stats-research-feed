@@ -31,9 +31,14 @@ export function useDigestPreference() {
   const signedIn = authStatus === "signedIn" && Boolean(userId);
 
   useEffect(() => {
-    // Reset on sign-out, so signing in as someone else does not briefly show
-    // the previous account's setting.
     if (!signedIn) {
+      /*
+       * Resetting in response to an external change — the auth session
+       * going away — rather than deriving state from props, which is what
+       * this rule is normally protecting against. Without it the previous
+       * account's setting stays on screen while the next one loads.
+       */
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("loading");
       setEnabled(false);
       setError(null);
