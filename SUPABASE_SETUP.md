@@ -157,7 +157,7 @@ They also carry the lab's name and branding, explain what the feed is, and
 give a contact address — which matters, because the stock template reads like
 phishing to anyone who was not expecting it.
 
-**Each email contains a 6-digit code as well as a link**, and the code is shown
+**Each email contains a numeric code as well as a link**, and the code is shown
 first on purpose. A link can be spent before the reader clicks it; a code typed
 by hand cannot be consumed by anything. For institutional addresses the code is
 the path that reliably works, so the sign-in dialog offers the code field as

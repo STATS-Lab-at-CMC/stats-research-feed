@@ -40,7 +40,7 @@ export interface AuthContextValue {
   /** Sends a sign-in email containing both a link and a code. Rejects with a user-facing message. */
   sendMagicLink: (email: string) => Promise<void>;
   /**
-   * Redeems the 6-digit code from that email.
+   * Redeems the numeric code from that email.
    *
    * Exists because a link can be consumed before the reader clicks it —
    * university mail systems scan inbound links as a matter of course — while

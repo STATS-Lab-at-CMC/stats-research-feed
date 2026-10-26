@@ -402,7 +402,7 @@ digest simply never sends; everything else is unaffected.
 Turning on accounts takes about 15 minutes — see
 [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md). Note that the auth email templates in
 [`supabase/email-templates/`](supabase/email-templates/) are **not optional for
-institutional email**: they carry a 6-digit sign-in code alongside the link,
+institutional email**: they carry a numeric sign-in code alongside the link,
 because university mail systems routinely open inbound links before the reader
 does, which spends a single-use link. A code typed by hand cannot be consumed
 that way.

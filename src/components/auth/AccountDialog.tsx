@@ -118,9 +118,18 @@ function WhyAnAccount() {
  * Offered alongside the link rather than instead of it, and placed first,
  * because for institutional addresses the code is the path that actually
  * works: mail security systems routinely open inbound links before the reader
- * does, which spends a single-use link, while a six-digit code typed by hand
+ * does, which spends a single-use link, while a code typed by hand
  * cannot be consumed by anything.
  */
+/**
+ * Digits only, so "123 456" and "123-456" count as six rather than seven or
+ * eight. Six is Supabase's shortest possible OTP, so it is the floor for
+ * "has the person finished typing", not an expected length.
+ */
+function digitCount(value: string): number {
+  return (value.match(/\d/g) ?? []).length;
+}
+
 function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => void }) {
   const { verifyCode } = useAuth();
   const [code, setCode] = useState("");
@@ -128,7 +137,7 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (code.trim().length < 6 || state.kind === "sending") return;
+    if (digitCount(code) < 6 || state.kind === "sending") return;
     setState({ kind: "sending" });
     try {
       await verifyCode(email, code);
@@ -144,7 +153,7 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       <label htmlFor="signin-code" className="text-sm font-medium text-foreground">
-        Enter the 6-digit code from the email
+        Enter the code from the email
       </label>
       <div className="flex items-center gap-2">
         <Input
@@ -152,8 +161,19 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
           inputMode="numeric"
           autoComplete="one-time-code"
           pattern="[0-9]*"
-          maxLength={7}
-          placeholder="123456"
+          /*
+           * Long enough for Supabase's maximum OTP (10 digits) plus any
+           * spaces or hyphens someone pastes along with it.
+           *
+           * This was 7, sized for a 6-digit code and one separator — which
+           * silently truncated the 8-digit codes this project actually
+           * issues. The length is a Supabase setting that can be changed in
+           * a dashboard this code knows nothing about, so the input must not
+           * assume one: `verifyCode` strips the separators and the server
+           * decides whether the code is right.
+           */
+          maxLength={14}
+          placeholder="Code from the email"
           value={code}
           onChange={(event) => {
             setCode(event.target.value.replace(/[^\d\s-]/g, ""));
@@ -162,7 +182,7 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
           className="font-mono tracking-[0.3em]"
           aria-describedby="signin-code-hint"
         />
-        <Button type="submit" disabled={state.kind === "sending" || code.trim().length < 6}>
+        <Button type="submit" disabled={state.kind === "sending" || digitCount(code) < 6}>
           {state.kind === "sending" ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -188,8 +208,8 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
       )}
 
       <p id="signin-code-hint" className="text-xs text-muted-foreground">
-        The code works even if the link does not — some mail systems open links before you do,
-        which uses them up.
+        The code works even if the link does not &mdash; some mail systems open links before you
+        do, which uses them up.
       </p>
     </form>
   );
