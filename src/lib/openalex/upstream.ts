@@ -26,18 +26,23 @@ export const UPSTREAM_TIMEOUT_MS = 20_000;
 /** The only OpenAlex collections this app reads. */
 export const ALLOWED_ENDPOINTS = new Set(["works", "sources"]);
 
-/** The only query parameters forwarded upstream. Anything else is dropped. */
+/**
+ * The only query parameters forwarded upstream. Anything else is dropped.
+ *
+ * Exactly what this app sends, and nothing more. `sample`, `seed`, `page` and
+ * `per_page` were dropped: nothing here uses them, and each was an extra way
+ * for an outside caller to vary a request so it misses the CDN cache and
+ * reaches upstream on this deployment's API key. Narrowing the surface does
+ * not make the route private — see the note in the route handler — but it
+ * removes the cheapest cache-busting handles.
+ */
 export const ALLOWED_PARAMS = new Set([
   "filter",
   "search",
   "sort",
   "select",
   "per-page",
-  "per_page",
-  "page",
   "cursor",
-  "sample",
-  "seed",
 ]);
 
 /**

@@ -139,10 +139,14 @@ export function FeedPage() {
    * snapshots that are actually missing keys, so this is one write per stale
    * article and then nothing.
    */
+  const refreshBookmarks = bookmarks.refreshBookmarks;
   useEffect(() => {
     if (articles.length === 0) return;
-    bookmarks.refreshBookmarks(articles);
-  }, [articles, bookmarks]);
+    refreshBookmarks(articles);
+    // Depends on the stable callback, not the whole `bookmarks` object, which
+    // is a fresh literal on every render — so this used to re-walk all ~500
+    // articles on every keystroke in the search box.
+  }, [articles, refreshBookmarks]);
 
   // In Saved mode, the journal dropdown should also offer journals behind a
   // bookmark that's no longer followed — otherwise there'd be no way to

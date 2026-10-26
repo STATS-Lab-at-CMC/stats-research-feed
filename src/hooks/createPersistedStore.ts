@@ -255,9 +255,31 @@ export function createPersistedEntityStore<T>(
       applyRemote: (payload: SlicePayload) => {
         const items = (payload.items ?? []) as unknown as T[];
         const next = new Map(items.map((item) => [getId(item), item]));
-        // Same identity-stability reasoning as the id-set store above.
         const current = ensureLoaded();
-        if (next.size === current.size && [...next.keys()].every((id) => current.has(id))) return;
+
+        /*
+         * Compared by *content*, not just by id. The id-set store above can
+         * compare keys because keys are all it holds; this store holds whole
+         * objects, so an id-only check treats "same articles, richer
+         * snapshots" as no change.
+         *
+         * That silently defeated the schema-drift upgrade: device one
+         * refreshes a bookmark from the live feed so it gains `pdfUrl`, and
+         * pushes it; device two pulls, sees the same single id, skips, and
+         * keeps the thinner snapshot forever — its Zotero export still
+         * attaching no PDF. Same for every field added since.
+         */
+        if (next.size === current.size) {
+          let identical = true;
+          for (const [id, item] of next) {
+            const existing = current.get(id);
+            if (existing === undefined || JSON.stringify(existing) !== JSON.stringify(item)) {
+              identical = false;
+              break;
+            }
+          }
+          if (identical) return;
+        }
         replace(next);
       },
       resetLocal: () => {

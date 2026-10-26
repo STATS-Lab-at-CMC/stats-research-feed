@@ -188,7 +188,16 @@ export async function getFeedArticles(followedJournals: JournalDefinition[]): Pr
         if (articles.length > 0) nextCache[journalId] = { articles, fetchedAt: now };
       }
       fetchFailedWithNoData = worksResult.articles.length === 0;
-      partial = worksResult.articles.length > 0;
+      /*
+       * Derived from whether the fetch finished, not from whether it happened
+       * to return anything. The old test was `articles.length > 0`, which
+       * meant a fetch that failed outright reported `partial: false` — and
+       * if any followed journal still had a fresh cache entry the union was
+       * non-empty, so the reader got a short feed labelled healthy, with no
+       * banner. That is precisely the silent truncation this flag exists to
+       * prevent.
+       */
+      partial = true;
       partialReason = worksResult.error;
     }
   }

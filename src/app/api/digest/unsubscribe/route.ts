@@ -86,12 +86,21 @@ async function unsubscribe(userId: string): Promise<{ ok: boolean; error?: strin
   const admin = createAdminClient();
   if (!admin) return { ok: false, error: "Unsubscribing is not configured on this deployment." };
 
-  const { error } = await admin
+  // `.select()` so the affected rows come back. Without it an update that
+  // matched nothing returns no error, and the page would say "no more
+  // digests" to someone whose setting was never touched — a broken
+  // unsubscribe would look exactly like a working one.
+  const { data, error } = await admin
     .from("user_settings")
     .update({ digest_enabled: false })
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("user_id");
 
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "No subscription was found for this link." };
+  }
+  return { ok: true };
 }
 
 export async function GET(request: Request) {

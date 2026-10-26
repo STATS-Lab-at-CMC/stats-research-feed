@@ -32,6 +32,23 @@ import {
  * - **Shared cache.** Identical upstream requests are cached at the CDN, so
  *   twenty readers with the same watchlist cost one upstream call instead of
  *   twenty. That matters because the budget is per key, not per reader.
+ *
+ * ## Known exposure: this route is public
+ *
+ * It is not injectable — the endpoint and every parameter are allowlisted in
+ * `upstream.ts`, and the key is attached after that pass so it cannot be
+ * overridden from the query string. But it is unauthenticated, and it spends
+ * this deployment's OpenAlex budget on behalf of whoever calls it. Someone
+ * who finds the path can issue arbitrary `/works` and `/sources` queries,
+ * and varying a parameter misses the CDN cache so each one reaches upstream.
+ * Exhausting the daily budget would make the feed truncate for every reader.
+ *
+ * Accepted for now, at this scale, because the mitigations have costs of
+ * their own: an origin check breaks for readers whose browser suppresses the
+ * header, and per-IP limiting needs state this deployment does not otherwise
+ * keep. The parameter list has been narrowed to exactly what the app sends,
+ * which removes the cheapest ways to bust the cache. If the OpenAlex budget
+ * ever starts running out, this is the first place to look.
  */
 
 /**

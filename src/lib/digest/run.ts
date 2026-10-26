@@ -66,6 +66,35 @@ export interface RunSummary {
   outcomes: SubscriberOutcome[];
 }
 
+/**
+ * Whether a `custom_journals.journal` row is safe to put in the shared fetch.
+ *
+ * That column is unvalidated `jsonb` that any signed-in person can write to
+ * through their own Supabase session, and the digest composes *one* OpenAlex
+ * query for every subscriber at once. So a single malformed row is not one
+ * person's problem: a journal with no `issns` throws inside
+ * `resolveJournalSources` and takes down the entire Monday run, and a
+ * `openAlexSourceId` carrying a comma injects an extra clause into a filter
+ * shared with everyone else's journals.
+ *
+ * Bad rows are dropped rather than thrown on. One person's broken row should
+ * cost them one journal, not cost everybody their digest.
+ */
+function isUsableJournal(value: unknown): value is JournalDefinition {
+  if (!value || typeof value !== "object") return false;
+  const journal = value as Partial<JournalDefinition>;
+  if (typeof journal.id !== "string" || journal.id.length === 0) return false;
+  if (typeof journal.name !== "string" || journal.name.length === 0) return false;
+  if (!Array.isArray(journal.issns)) return false;
+  if (!journal.issns.every((issn) => typeof issn === "string")) return false;
+  // Must be an OpenAlex source id and nothing else — no separators that
+  // could extend the filter expression it is interpolated into.
+  if (journal.openAlexSourceId !== undefined && !/^S\d+$/.test(journal.openAlexSourceId)) {
+    return false;
+  }
+  return true;
+}
+
 interface SubscriberRow {
   user_id: string;
   followed_journal_ids: string[] | null;
@@ -114,6 +143,7 @@ async function loadSubscribers(
 /** Everyone's journals, de-duplicated, so the fetch below happens once. */
 async function fetchSharedArticles(
   recipients: DigestRecipient[],
+  now: Date,
 ): Promise<{
   articles: Article[];
   unresolvedJournalIds: string[];
@@ -125,7 +155,7 @@ async function fetchSharedArticles(
 
   for (const recipient of recipients) {
     for (const journal of journalsFor(recipient)) unionById.set(journal.id, journal);
-    widestWindow = Math.max(widestWindow, windowDaysFor(recipient.lastSentAt));
+    widestWindow = Math.max(widestWindow, windowDaysFor(recipient.lastSentAt, now));
   }
 
   const journals = Array.from(unionById.values());
@@ -204,8 +234,8 @@ export async function runDigest(
         considered.map((row) => row.user_id),
       );
 
-    for (const row of (customRows ?? []) as { user_id: string; journal?: JournalDefinition }[]) {
-      if (!row.journal?.id) continue;
+    for (const row of (customRows ?? []) as { user_id: string; journal?: unknown }[]) {
+      if (!isUsableJournal(row.journal)) continue;
       const list = customByUserId.get(row.user_id) ?? [];
       list.push(row.journal);
       customByUserId.set(row.user_id, list);
@@ -263,9 +293,32 @@ export async function runDigest(
     eligible.push({ row, recipient });
   }
 
-  const shared = await fetchSharedArticles(eligible.map((entry) => entry.recipient));
+  const shared = await fetchSharedArticles(
+    eligible.map((entry) => entry.recipient),
+    now,
+  );
 
   for (const { row, recipient } of eligible) {
+    try {
+      await sendToOne(row, recipient);
+    } catch (error) {
+      /*
+       * One recipient's failure must not end the run. Composing and
+       * rendering sit outside `sendDigestEmail`'s own error handling, so
+       * before this an unexpected throw on subscriber six meant subscribers
+       * six to twenty were never attempted — and the summary, built after
+       * the loop, could not even say who was missed.
+       */
+      outcomes.push({
+        userId: row.user_id,
+        email: recipient.email,
+        status: "failed",
+        reason: error instanceof Error ? error.message : "Could not build this digest.",
+      });
+    }
+  }
+
+  async function sendToOne(row: SubscriberRow, recipient: DigestRecipient): Promise<void> {
     const digest = await composeDigest(recipient, {
       now,
       articles: shared.articles,
@@ -285,7 +338,7 @@ export async function runDigest(
         reason: "Dry run — composed but not sent.",
         articleCount: digest.totalCount,
       });
-      continue;
+      return;
     }
 
     const result = await sendDigestEmail({
@@ -304,7 +357,7 @@ export async function runDigest(
         reason: result.error,
         articleCount: digest.totalCount,
       });
-      continue;
+      return;
     }
 
     // Only now, and only for a real run. A test send that advanced this would
@@ -326,7 +379,7 @@ export async function runDigest(
           reason: `Sent, but could not record the send: ${updateError.message}`,
           articleCount: digest.totalCount,
         });
-        continue;
+        return;
       }
     }
 

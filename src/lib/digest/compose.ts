@@ -13,6 +13,7 @@
  * job, free to render the same digest without either of them being the only
  * way to see what a digest would say.
  */
+import "server-only";
 import type { Article } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { JOURNAL_CATALOG } from "@/lib/journals/catalog";
@@ -115,6 +116,39 @@ export function windowDaysFor(lastSentAt: string | null | undefined, now = new D
   return Math.min(MAX_WINDOW_DAYS, Math.max(1, days));
 }
 
+/**
+ * The inclusive date this digest starts at.
+ *
+ * Derived from the last send's *date*, not from a count of days: the old code
+ * rounded a fractional day count up and subtracted it, so a send at 14:07
+ * reached back eight days while one at 13:55 reached back seven. The boundary
+ * day moved with the clock, and Vercel's Hobby cron only promises the hour,
+ * so which articles repeated was effectively a weekly coin flip.
+ *
+ * One day of overlap remains, and is deliberate. `publication_date` is
+ * day-granular and OpenAlex indexes many articles days after they appear, so
+ * starting the morning after the previous send would quietly drop anything
+ * indexed late on the boundary day. A repeated article is visible and
+ * harmless; a missed one is invisible and is the whole failure mode this
+ * feature exists to prevent. The overlap is now exactly one day, every week,
+ * instead of one or two at random.
+ */
+export function windowStartFor(
+  lastSentAt: string | null | undefined,
+  now = new Date(),
+): string {
+  const earliest = isoDate(new Date(now.getTime() - MAX_WINDOW_DAYS * 86_400_000));
+  if (!lastSentAt) {
+    return isoDate(new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86_400_000));
+  }
+  const last = new Date(lastSentAt);
+  if (Number.isNaN(last.getTime())) {
+    return isoDate(new Date(now.getTime() - DEFAULT_WINDOW_DAYS * 86_400_000));
+  }
+  const fromLast = isoDate(last);
+  return fromLast < earliest ? earliest : fromLast;
+}
+
 /** Resolves a reader's followed ids to journal definitions, catalog plus their own. */
 export function journalsFor(recipient: DigestRecipient): JournalDefinition[] {
   const byId = new Map<string, JournalDefinition>();
@@ -151,8 +185,10 @@ export async function composeDigest(
   options: ComposeOptions = {},
 ): Promise<Digest> {
   const now = options.now ?? new Date();
+  // The fetch may reach slightly further back than the filter; that is safe,
+  // and cheaper than fetching twice.
   const windowDays = windowDaysFor(recipient.lastSentAt, now);
-  const windowStart = isoDate(new Date(now.getTime() - windowDays * 86_400_000));
+  const windowStart = windowStartFor(recipient.lastSentAt, now);
   const windowEnd = isoDate(now);
 
   const journals = journalsFor(recipient);
