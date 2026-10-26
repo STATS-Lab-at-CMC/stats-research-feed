@@ -52,10 +52,6 @@ export function missingSendConfig(): string[] {
   return required.filter((name) => !process.env[name]?.trim());
 }
 
-/** Whether this deployment can send at all. */
-export function isDigestSendConfigured(): boolean {
-  return missingSendConfig().length === 0;
-}
 
 export async function sendDigestEmail(args: SendDigestArgs): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();

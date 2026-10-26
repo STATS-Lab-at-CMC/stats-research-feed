@@ -87,8 +87,3 @@ export function getSupabaseClient(): SupabaseClient | null {
   return client;
 }
 
-/** Human-readable reason the account feature is unavailable, or null if it is available. */
-export function supabaseUnavailableReason(): string | null {
-  if (isSupabaseConfigured()) return null;
-  return "This deployment has no Supabase project configured, so accounts are turned off. The feed works normally and saves everything in this browser.";
-}

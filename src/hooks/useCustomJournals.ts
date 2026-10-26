@@ -54,12 +54,3 @@ export function useCustomJournals() {
   };
 }
 
-/**
- * Same merge, for the one place that needs it outside React: nothing yet, but
- * kept alongside the hook so the two cannot drift apart if that changes.
- */
-export function mergeJournals(custom: JournalDefinition[]): JournalDefinition[] {
-  const byId = new Map(JOURNAL_CATALOG.map((journal) => [journal.id, journal]));
-  for (const journal of custom) if (!byId.has(journal.id)) byId.set(journal.id, journal);
-  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
-}

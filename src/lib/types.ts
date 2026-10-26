@@ -55,13 +55,6 @@ export interface Article {
   source: "openalex" | "demo";
 }
 
-export interface JournalWithState {
-  id: string;
-  name: string;
-  publisher?: string;
-  followed: boolean;
-  confidence: "verified" | "low";
-}
 
 export type FeedSeenFilter = "all" | "unseen" | "seen" | "saved";
 export type FeedSortOrder = "newest" | "oldest";

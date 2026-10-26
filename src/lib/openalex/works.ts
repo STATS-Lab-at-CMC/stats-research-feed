@@ -128,16 +128,10 @@ export async function fetchRecentWorksForSources(
 
       cursor = nextCursor;
 
-      
-
-      // Last allowed page, and OpenAlex says there is more. Stopping here
-
-      // is correct — the budget exists for a reason — but reporting
-
-      // success would not be: the reader would see a short feed with
-
-      // nothing to indicate it had been cut off.
-
+      // Last allowed page, and OpenAlex says there is more. Stopping here is
+      // correct — the budget exists for a reason — but reporting success
+      // would not be: the reader would see a short feed with nothing to
+      // indicate it had been cut off.
       if (page === MAX_PAGES - 1) pageLimitHit = true;
     }
   }

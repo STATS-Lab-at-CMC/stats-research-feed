@@ -31,18 +31,35 @@ export function useDigestPreference() {
   const signedIn = authStatus === "signedIn" && Boolean(userId);
 
   useEffect(() => {
-    if (!signedIn) return;
+    // Reset on sign-out, so signing in as someone else does not briefly show
+    // the previous account's setting.
+    if (!signedIn) {
+      setStatus("loading");
+      setEnabled(false);
+      setError(null);
+      return;
+    }
     const client = getSupabaseClient();
     if (!client) return;
 
     let cancelled = false;
 
-    client
-      .from("user_settings")
-      .select("digest_enabled")
-      .eq("user_id", userId!)
-      .maybeSingle()
-      .then(({ data, error: readError }) => {
+    /*
+     * `try`/`catch` rather than a trailing `.catch`: the query builder is a
+     * PromiseLike, so it has `then` but no `catch`. supabase-js normally
+     * resolves with `{ error }` instead of rejecting — but a network-layer
+     * throw would otherwise be an unhandled rejection that leaves `status`
+     * on "loading" forever, which renders as a switch permanently disabled
+     * with nothing explaining why.
+     */
+    void (async () => {
+      try {
+        const { data, error: readError } = await client
+          .from("user_settings")
+          .select("digest_enabled")
+          .eq("user_id", userId!)
+          .maybeSingle();
+
         if (cancelled) return;
         if (readError) {
           // Most likely the migration has not been run yet. Say so rather
@@ -55,7 +72,12 @@ export function useDigestPreference() {
         }
         setEnabled(data?.digest_enabled === true);
         setStatus("ready");
-      });
+      } catch {
+        if (cancelled) return;
+        setStatus("error");
+        setError("Could not read your digest setting.");
+      }
+    })();
 
     return () => {
       cancelled = true;

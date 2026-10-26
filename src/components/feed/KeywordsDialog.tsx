@@ -31,7 +31,7 @@ interface KeywordsDialogProps {
  * the highlight look broken rather than unconfigured.
  */
 export function KeywordsDialog({ open, onOpenChange, matchCount }: KeywordsDialogProps) {
-  const { keywords, highlight, setHighlight, addKeyword, removeKeyword, clearKeywords } =
+  const { keywords, highlight, setHighlight, addKeyword, removeKeyword, clearKeywords, atLimit } =
     useKeywords();
   const [draft, setDraft] = useState("");
 
@@ -63,8 +63,15 @@ export function KeywordsDialog({ open, onOpenChange, matchCount }: KeywordsDialo
             onChange={(event) => setDraft(event.target.value)}
             placeholder="e.g. calling, leader emergence, measurement invariance"
             aria-label="Add a keyword"
+            maxLength={120}
+            disabled={atLimit}
           />
-          <Button type="submit" size="sm" disabled={!draft.trim()} className="shrink-0 gap-1.5">
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!draft.trim() || atLimit}
+            className="shrink-0 gap-1.5"
+          >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
             Add
           </Button>
@@ -77,6 +84,14 @@ export function KeywordsDialog({ open, onOpenChange, matchCount }: KeywordsDialo
           nothing on screen would otherwise reveal that a plural is a
           different term.
         */}
+        {atLimit && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            That is 200 keywords, which is the limit — matching runs over every term on every
+            article on screen, and past a few hundred it starts to slow the page down. Remove
+            one to add another.
+          </p>
+        )}
+
         <p className="text-xs leading-relaxed text-muted-foreground">
           Whole words, any capitalisation, and no stemming:{" "}
           <span className="font-medium text-foreground">leader</span> does not find{" "}

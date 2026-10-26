@@ -112,11 +112,17 @@ interface SubscriberRow {
  */
 async function loadSubscribers(
   admin: SupabaseClient,
+  onlyUserId?: string,
 ): Promise<{ rows: SubscriberRow[]; emailByUserId: Map<string, string> }> {
-  const { data, error } = await admin
+  // Narrowed in the database for a single-recipient run (the "send me one
+  // now" button), rather than loading every subscriber and discarding all
+  // but one — which also meant paging the whole user table for their emails.
+  let query = admin
     .from("user_settings")
     .select("user_id, followed_journal_ids, keywords, last_digest_sent_at")
     .eq("digest_enabled", true);
+  if (onlyUserId) query = query.eq("user_id", onlyUserId);
+  const { data, error } = await query;
 
   if (error) throw new Error(`Could not read subscribers: ${error.message}`);
 
@@ -124,7 +130,24 @@ async function loadSubscribers(
   const wanted = new Set(rows.map((row) => row.user_id));
   const emailByUserId = new Map<string, string>();
 
-  for (let page = 1; wanted.size > emailByUserId.size; page++) {
+  if (wanted.size === 0) return { rows, emailByUserId };
+
+  // One lookup when there is one subscriber to find.
+  if (wanted.size === 1) {
+    const [only] = wanted;
+    const { data: user } = await admin.auth.admin.getUserById(only);
+    if (user?.user?.email) emailByUserId.set(only, user.user.email);
+    return { rows, emailByUserId };
+  }
+
+  /*
+   * Bounded by the pages the API reports, not by "have I found everyone yet".
+   * A user_settings row whose auth.users entry is gone, or has no email, can
+   * never be found — and the old condition would then walk the entire user
+   * table to its end looking for it.
+   */
+  const MAX_PAGES = 50;
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const { data: users, error: usersError } = await admin.auth.admin.listUsers({
       page,
       perPage: 200,
@@ -135,6 +158,9 @@ async function loadSubscribers(
     for (const user of users.users) {
       if (wanted.has(user.id) && user.email) emailByUserId.set(user.id, user.email);
     }
+
+    if (emailByUserId.size === wanted.size) break;
+    if (users.users.length < 200) break;
   }
 
   return { rows, emailByUserId };
@@ -216,7 +242,7 @@ export async function runDigest(
   options: RunOptions,
 ): Promise<RunSummary> {
   const now = options.now ?? new Date();
-  const { rows, emailByUserId } = await loadSubscribers(admin);
+  const { rows, emailByUserId } = await loadSubscribers(admin, options.onlyUserId);
 
   const considered = options.onlyUserId
     ? rows.filter((row) => row.user_id === options.onlyUserId)

@@ -43,6 +43,3 @@ export const RECENCY_BUCKET_LABELS: Record<RecencyBucket, string> = {
   undated: "Undated",
 };
 
-export function daysBetween(startMs: number, endMs: number): number {
-  return Math.floor((endMs - startMs) / DAY_MS);
-}
