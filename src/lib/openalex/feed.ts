@@ -48,6 +48,30 @@ interface JournalWorksCacheEntry {
 
 type WorksCache = Record<string, JournalWorksCacheEntry>;
 
+/**
+ * Bump this whenever `Article` gains or changes a field.
+ *
+ * Cached articles are stored as whole `Article` objects, and the shape check
+ * below only asks whether an entry looks like an entry — an article written
+ * by an older build passes it intact, missing fields and all. So when
+ * `keywords` shipped, every browser holding a cache kept rendering
+ * keyword-less articles until the 20-minute TTL expired, with nothing to
+ * indicate why. The TTL is a staleness policy for *data*; it was never meant
+ * to double as a migration for *shape*.
+ *
+ * A version makes that instant instead of eventual: a cache written under a
+ * different number is discarded on read and refetched.
+ *
+ *   1 — unversioned (any cache predating this constant)
+ *   2 — Article gained `keywords`
+ */
+const WORKS_CACHE_SCHEMA = 2;
+
+interface WorksCacheFile {
+  schema: number;
+  entries: WorksCache;
+}
+
 function isJournalWorksCacheEntry(value: unknown): value is JournalWorksCacheEntry {
   if (!value || typeof value !== "object") return false;
   const entry = value as Partial<JournalWorksCacheEntry>;
@@ -55,21 +79,27 @@ function isJournalWorksCacheEntry(value: unknown): value is JournalWorksCacheEnt
 }
 
 function readWorksCache(): WorksCache {
-  // Same reasoning as sources.ts: an old (pre-restructure) single-blob cache
-  // under this key just fails the shape check per "journal id" lookup below
-  // and is treated as empty — no crash, no migration code needed.
-  const raw = storage.get<Record<string, unknown> | null>(STORAGE_KEYS.openAlexWorksCache, null);
+  // Anything that is not this exact schema is treated as absent: the old
+  // unversioned bare-map format, a half-written value, a future version
+  // after a downgrade. No crash and no migration code — just a refetch.
+  const raw = storage.get<Partial<WorksCacheFile> | null>(
+    STORAGE_KEYS.openAlexWorksCache,
+    null,
+  );
   if (!raw || typeof raw !== "object") return {};
+  if (raw.schema !== WORKS_CACHE_SCHEMA) return {};
+  if (!raw.entries || typeof raw.entries !== "object") return {};
 
   const cache: WorksCache = {};
-  for (const [journalId, entry] of Object.entries(raw)) {
+  for (const [journalId, entry] of Object.entries(raw.entries)) {
     if (isJournalWorksCacheEntry(entry)) cache[journalId] = entry;
   }
   return cache;
 }
 
 function writeWorksCache(cache: WorksCache): void {
-  storage.set(STORAGE_KEYS.openAlexWorksCache, cache);
+  const file: WorksCacheFile = { schema: WORKS_CACHE_SCHEMA, entries: cache };
+  storage.set(STORAGE_KEYS.openAlexWorksCache, file);
 }
 
 function isFresh(entry: JournalWorksCacheEntry | undefined, now: number): entry is JournalWorksCacheEntry {
