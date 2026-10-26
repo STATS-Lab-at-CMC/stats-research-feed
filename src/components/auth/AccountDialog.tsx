@@ -173,7 +173,6 @@ function CodeEntry({ email, onSignedIn }: { email: string; onSignedIn: () => voi
            * decides whether the code is right.
            */
           maxLength={14}
-          placeholder="Code from the email"
           value={code}
           onChange={(event) => {
             setCode(event.target.value.replace(/[^\d\s-]/g, ""));
@@ -272,6 +271,12 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
             <li>Check your spam or quarantine folder — institutional filters often hold automated
               sign-in mail.</li>
             <li>
+              <span className="font-medium text-foreground">Try a personal address instead</span>{" "}
+              — Gmail, Outlook.com, iCloud. A university gateway refusing the mail outright is
+              the commonest reason nothing arrives, and no setting on this site can get past it.
+              Each address is its own account, though, with its own watchlist.
+            </li>
+            <li>
               If the link says it is invalid or expired, a mail scanner opened it first — use the
               code above instead, which cannot be consumed that way.
             </li>
@@ -321,7 +326,9 @@ function SignInPanel({ onClose }: { onClose: () => void }) {
             aria-describedby="account-email-hint"
           />
           <p id="account-email-hint" className="text-xs text-muted-foreground">
-            No password. We email you a link that signs you in.
+            No password — we email you a link and a code that sign you in. University mail
+            systems sometimes block automated sign-in mail, so a personal address is often more
+            reliable.
           </p>
         </div>
 
