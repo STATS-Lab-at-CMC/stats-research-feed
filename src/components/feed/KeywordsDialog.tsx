@@ -48,8 +48,10 @@ export function KeywordsDialog({ open, onOpenChange, matchCount }: KeywordsDialo
         <DialogHeader>
           <DialogTitle>Keywords</DialogTitle>
           <DialogDescription>
-            Terms you want to spot in the feed. Matches are highlighted in titles and abstracts,
-            and can be filtered down to.
+            Terms you want to spot in the feed. Each one is matched against an article&apos;s
+            title, its abstract, and the keywords OpenAlex assigns it — so a paper can match on
+            its subject even when it never uses your word. Matches are highlighted, and the feed
+            can be filtered down to them.
           </DialogDescription>
         </DialogHeader>
 
@@ -67,6 +69,24 @@ export function KeywordsDialog({ open, onOpenChange, matchCount }: KeywordsDialo
             Add
           </Button>
         </form>
+
+        {/*
+          Says what the matcher actually does, with the two cases people get
+          caught by. Whole-word matching is the right default — substrings
+          would make "fit" hit every "benefit" — but it has no stemming, and
+          nothing on screen would otherwise reveal that a plural is a
+          different term.
+        */}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Whole words, any capitalisation, and no stemming:{" "}
+          <span className="font-medium text-foreground">leader</span> does not find{" "}
+          <span className="font-medium text-foreground">leaders</span>, and{" "}
+          <span className="font-medium text-foreground">meta-analysis</span> does not find{" "}
+          <span className="font-medium text-foreground">meta-analytic</span> — add both forms if
+          you want both. Partial words never match, so{" "}
+          <span className="font-medium text-foreground">calling</span> skips
+          &ldquo;recalling&rdquo;. Phrases and hyphens work as typed.
+        </p>
 
         {keywords.length > 0 ? (
           <div className="space-y-2">

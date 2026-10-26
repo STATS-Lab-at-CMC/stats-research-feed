@@ -232,21 +232,26 @@ export function ArticleCard({
         survives filtering with highlighting switched off.
       */}
       {keywordRow.shown.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-x-1.5 gap-y-1" aria-label="Topics from OpenAlex">
-          {keywordRow.shown.map((keyword) => (
-            <li
-              key={keyword}
-              className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] leading-tight text-muted-foreground"
-            >
-              <HighlightedText text={keyword} pattern={matchPattern ?? null} />
-            </li>
-          ))}
-          {keywordRow.hidden > 0 && (
-            <li className="px-0.5 py-0.5 text-[11px] leading-tight text-muted-foreground/70">
-              +{keywordRow.hidden}
-            </li>
-          )}
-        </ul>
+        <div className="mt-3 flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+          <span className="text-[11px] font-medium leading-tight text-muted-foreground/80">
+            Keywords
+          </span>
+          <ul className="flex min-w-0 flex-1 flex-wrap gap-x-1.5 gap-y-1" aria-label="Keywords from OpenAlex">
+            {keywordRow.shown.map((keyword) => (
+              <li
+                key={keyword}
+                className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] leading-tight text-muted-foreground"
+              >
+                <HighlightedText text={keyword} pattern={matchPattern ?? null} />
+              </li>
+            ))}
+            {keywordRow.hidden > 0 && (
+              <li className="px-0.5 py-0.5 text-[11px] leading-tight text-muted-foreground/70">
+                +{keywordRow.hidden}
+              </li>
+            )}
+          </ul>
+        </div>
       )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">

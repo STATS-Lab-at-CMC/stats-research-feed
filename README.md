@@ -138,6 +138,12 @@ are "recalling". Terms with punctuation still work (`p-hacking`, `COVID-19`,
 `C++`), and longer phrases win over shorter ones at the same position, so
 "leader emergence" is highlighted as a phrase rather than as "leader".
 
+There is **no stemming**, which is the one thing worth knowing before saving a
+term: "leader" does not find "leaders", and "meta-analysis" does not find
+"meta-analytic". Save both forms if you want both. The keywords dialog says
+so, since nothing on screen would otherwise reveal that a plural is a
+different term.
+
 Author names are excluded on purpose — "Lee" or "Wang" would match constantly,
 and following a person is a different feature from following a topic.
 
