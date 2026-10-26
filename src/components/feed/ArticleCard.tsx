@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatApaCitation } from "@/lib/citation/apa";
 import { HighlightedText } from "./HighlightedText";
-import { matchIsIndexTermOnly, matchedIndexTerms } from "@/lib/keywords/match";
+import { matchedTerms } from "@/lib/keywords/match";
 import { formatPublicationDate } from "@/lib/utils/date";
 import { cn } from "@/lib/utils/cn";
 
@@ -32,6 +32,38 @@ interface ArticleCardProps {
   onToggleSeen: () => void;
   onToggleBookmark: () => void;
   isContinueTarget?: boolean;
+}
+
+/**
+ * How many OpenAlex terms a card shows.
+ *
+ * Measured against the live feed at phone width: the median article carries
+ * 8 terms and renders an 83px block, the 90th percentile 11 terms and 105px,
+ * and the worst 18 terms and 192px — taller than the abstract preview above
+ * it, for the quietest thing on the card. Six keeps the row to about two
+ * lines on a phone while still showing the bulk of what most articles carry.
+ */
+const MAX_VISIBLE_KEYWORDS = 6;
+
+/**
+ * The terms to show, with anything matching the reader's keywords first.
+ *
+ * Hoisting matches is what makes the cap safe. Matching runs over *all* of an
+ * article's terms, so without this an article could match on its twelfth
+ * keyword and show six that explain nothing — the invisible-match problem
+ * this row exists to solve, reintroduced by the truncation.
+ */
+function visibleKeywords(
+  keywords: string[],
+  pattern: RegExp | null,
+): { shown: string[]; hidden: number } {
+  const matched = matchedTerms(keywords, pattern);
+  const matchedSet = new Set(matched);
+  const ordered = [...matched, ...keywords.filter((k) => !matchedSet.has(k))];
+  return {
+    shown: ordered.slice(0, MAX_VISIBLE_KEYWORDS),
+    hidden: Math.max(0, ordered.length - MAX_VISIBLE_KEYWORDS),
+  };
 }
 
 function formatAuthors(authors: string[]): string {
@@ -107,6 +139,7 @@ export function ArticleCard({
   matchPattern,
 }: ArticleCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const keywordRow = visibleKeywords(article.keywords ?? [], matchPattern ?? null);
 
   return (
     <article
@@ -157,27 +190,6 @@ export function ArticleCard({
 
       <p className="mt-1 text-sm text-muted-foreground">{formatAuthors(article.authors)}</p>
 
-      {/*
-        Shown only when the article matched on an OpenAlex index term and
-        nothing in the title or abstract — so there is no highlight anywhere
-        and no visible reason the article is in a filtered list. Showing these
-        on every match would be noise; showing them here is the difference
-        between a result that looks explicable and one that looks like a bug.
-      */}
-      {matchIsIndexTermOnly(article, matchPattern ?? null) && (
-        <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <span>Matched on</span>
-          {matchedIndexTerms(article, matchPattern ?? null).map((term) => (
-            <span
-              key={term}
-              className="rounded bg-secondary/10 px-1.5 py-0.5 font-medium text-foreground"
-            >
-              {term}
-            </span>
-          ))}
-        </p>
-      )}
-
       <div className="mt-2">
         {article.abstract ? (
           <>
@@ -205,6 +217,37 @@ export function ArticleCard({
           <p className="text-sm italic text-muted-foreground">No abstract available.</p>
         )}
       </div>
+
+      {/*
+        OpenAlex's own index terms for this article.
+        
+        Deliberately the quietest thing on the card: they are reference
+        material you scan, not something to read, and eight of them at body
+        weight would outshout the abstract. Matches against the reader's own
+        keywords are highlighted in place, which is also what explains an
+        article whose title and abstract contain the term nowhere — it is
+        visible here instead of needing a row of its own.
+
+        Driven by `matchPattern`, not `highlightPattern`, so the explanation
+        survives filtering with highlighting switched off.
+      */}
+      {keywordRow.shown.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-x-1.5 gap-y-1" aria-label="Topics from OpenAlex">
+          {keywordRow.shown.map((keyword) => (
+            <li
+              key={keyword}
+              className="rounded bg-muted/60 px-1.5 py-0.5 text-[11px] leading-tight text-muted-foreground"
+            >
+              <HighlightedText text={keyword} pattern={matchPattern ?? null} />
+            </li>
+          ))}
+          {keywordRow.hidden > 0 && (
+            <li className="px-0.5 py-0.5 text-[11px] leading-tight text-muted-foreground/70">
+              +{keywordRow.hidden}
+            </li>
+          )}
+        </ul>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
         <div className="flex items-center gap-1.5">

@@ -117,9 +117,13 @@ catches papers whose title and abstract never use your word: searching
 "leadership" nowhere in their text and surface only through terms like
 `humor in leadership` or `exploitative leadership`. It also matters for the
 ~6% of articles OpenAlex has no abstract for, where the title was previously
-the only thing to match against. Those 8 carry a **"Matched on"** note naming
-the term responsible — shown only when nothing in the title or abstract is
-highlighted, so a result never appears without a visible reason.
+the only thing to match against. Each card lists these terms in small type just above its action row, with any
+that match your keywords pulled to the front and highlighted in place — so an
+article whose title and abstract never mention your term still shows why it is
+there. Six are shown, ordered by OpenAlex's own relevance score, with a `+N`
+for the rest; the cap is for the tail, where one article carried 18 terms and
+rendered a block taller than the abstract above it. Matching always runs over
+the full list, never just the visible six.
 
 OpenAlex `topics` are deliberately *not* matched. They are a coarse taxonomy,
 so the single topic "Workaholism, burnout, and well-being" would make every

@@ -78,8 +78,16 @@ export function articleMatchesKeywords(article: Article, pattern: RegExp | null)
  * from a saved snapshot written before this field existed will not have one.
  */
 export function matchedIndexTerms(article: Article, pattern: RegExp | null): string[] {
+  return matchedTerms(article.keywords, pattern);
+}
+
+/** The same check against a bare list, for callers that have one. */
+export function matchedTerms(
+  keywords: string[] | undefined,
+  pattern: RegExp | null,
+): string[] {
   if (!pattern) return [];
-  return (article.keywords ?? []).filter((keyword) => {
+  return (keywords ?? []).filter((keyword) => {
     pattern.lastIndex = 0;
     return pattern.test(keyword);
   });

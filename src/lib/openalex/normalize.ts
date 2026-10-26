@@ -116,7 +116,15 @@ export function normalizeOpenAlexWork(
      * little noise to filter, and a threshold is a number nobody would ever
      * tune. One line to add here if that turns out to be wrong.
      */
+    /*
+     * Sorted by OpenAlex's own relevance score, strongest first, because the
+     * API does not return them in score order and the card shows only the
+     * first handful. Without this, which terms a reader sees would be
+     * arbitrary rather than the ones OpenAlex is most confident about.
+     */
     keywords: (work.keywords ?? [])
+      .slice()
+      .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .map((keyword) => cleanText(keyword.display_name))
       .filter((name): name is string => Boolean(name)),
     source: "openalex",
