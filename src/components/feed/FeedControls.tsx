@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, Settings2, CheckCheck, Tag } from "lucide-react";
+import { Search, X, Settings2, CheckCheck, Tag, ChevronDown } from "lucide-react";
 import type { FeedFilterState, FeedSeenFilter } from "@/lib/types";
 import type { JournalDefinition } from "@/lib/journals/catalog";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,33 @@ const SEEN_OPTIONS: { value: FeedSeenFilter; label: string }[] = [
   { value: "seen", label: "Seen" },
   { value: "saved", label: "Saved" },
 ];
+
+/**
+ * A native select draws its own arrow, and the browser decides where — tight
+ * against the right border, ignoring the element's padding. `appearance-none`
+ * removes it so this one can sit where the rest of the control's spacing says
+ * it should.
+ *
+ * `pointer-events-none` so clicks fall through to the select underneath;
+ * without it the arrow would be the one part of the control that does not open
+ * the menu. Colour comes from a token rather than a background-image data URI,
+ * which is what keeps it correct in both themes.
+ */
+function SelectChevron() {
+  return (
+    <ChevronDown
+      aria-hidden="true"
+      className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+    />
+  );
+}
+
+/**
+ * `pr-8` leaves room for the chevron above: 32px of text padding against an
+ * arrow that ends 24px from the edge, so the label never runs underneath it.
+ */
+const SELECT_CLASS =
+  "h-8 appearance-none rounded-md border border-input bg-card py-0 pl-2.5 pr-8 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export function FeedControls({
   filters,
@@ -144,11 +171,11 @@ export function FeedControls({
           actually lets it shrink; a flex item defaults to min-width:auto and
           would otherwise refuse to go below its content width.
         */}
-        <label className="flex w-full min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground sm:w-auto">
+        <label className="relative flex w-full min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground sm:w-auto">
           <select
             value={journalFilter}
             onChange={(e) => onJournalFilterChange(e.target.value)}
-            className="h-8 w-full min-w-0 truncate rounded-md border border-input bg-card py-0 pl-2.5 pr-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[16rem]"
+            className={cn(SELECT_CLASS, "w-full min-w-0 truncate sm:w-auto sm:max-w-[16rem]")}
             aria-label="Filter by journal"
           >
             <option value="all">All journals</option>
@@ -158,18 +185,20 @@ export function FeedControls({
               </option>
             ))}
           </select>
+          <SelectChevron />
         </label>
 
-        <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <label className="relative flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <select
             value={filters.sort}
             onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as FeedFilterState["sort"] })}
-            className="h-8 max-w-full rounded-md border border-input bg-card py-0 pl-2.5 pr-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(SELECT_CLASS, "max-w-full")}
             aria-label="Sort order"
           >
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
           </select>
+          <SelectChevron />
         </label>
 
         {keywordCount > 0 && (
