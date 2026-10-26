@@ -711,10 +711,28 @@ function DigestSection() {
         </p>
       )}
 
+      {/*
+        Shown whether or not the digest is switched on, because it bears on
+        the decision to switch it on. Confirmed the hard way: a digest to a
+        cmc.edu address bounced off the university gateway twice while the
+        identical email reached a personal address first time. Sign-in mail
+        gets through the same gateway, so this is specific to bulk HTML with
+        a page of outbound links, and no setting on this end changes it.
+      */}
+      {!error && (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          The digest goes to{" "}
+          <span className="font-medium text-foreground">the address you signed in with</span>, and{" "}
+          <span className="font-medium text-foreground">a personal address is recommended</span>.
+          University mail systems often block automated mail like this, even when sign-in emails
+          from the same sender arrive normally. If the digest never turns up, an account under a
+          personal address (Gmail, Outlook.com, iCloud) will receive it reliably.
+        </p>
+      )}
+
       {enabled && !error && (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Sent to <span className="font-medium text-foreground">the address you signed in with</span>.
-          Every digest also carries an unsubscribe link that works without signing in.
+          Every digest carries an unsubscribe link that works without signing in.
         </p>
       )}
 
