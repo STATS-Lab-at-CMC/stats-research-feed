@@ -248,28 +248,42 @@ async function drain(): Promise<void> {
  * calls act as a plain refresh.
  */
 export async function startSync(client: SupabaseClient, userId: string): Promise<void> {
+  // Set before the guard below, so that a call which joins an in-flight pull
+  // still leaves `refreshSync` pointing at the right account.
+  activeClient = client;
+  activeUserId = userId;
+
   // Focus events can fire while the opening pull is still running. Without
   // this guard the second call would replace the first's op buffer and the
   // clicks collected in it would vanish.
   if (pullInFlight) return pullInFlight;
 
-  activeClient = client;
-  activeUserId = userId;
-
   // Install the handler *before* awaiting anything, so a click during the
   // pull is captured rather than silently lost — on a refresh as much as on
   // a first sign-in, since both end by overwriting local state.
-  bufferedDuringPull = [];
+  //
+  // The buffer is held by identity rather than read back out of module
+  // state. `stopSync` nulls `pullInFlight` while a pull is still running, so
+  // a later pull can own these fields by the time an earlier one settles —
+  // and an earlier pull clearing them unconditionally would take the newer
+  // pull's buffer with it, discarding clicks that were never pushed.
+  const myBuffer: SyncOp[] = [];
+  bufferedDuringPull = myBuffer;
   setSyncOpHandler(enqueue);
   setState({ status: "syncing", error: null });
 
-  pullInFlight = runPull(client, userId).finally(() => {
-    pullInFlight = null;
+  const myPull = runPull(client, userId, myBuffer).finally(() => {
+    if (pullInFlight === myPull) pullInFlight = null;
   });
+  pullInFlight = myPull;
   return pullInFlight;
 }
 
-async function runPull(client: SupabaseClient, userId: string): Promise<void> {
+async function runPull(
+  client: SupabaseClient,
+  userId: string,
+  myBuffer: SyncOp[],
+): Promise<void> {
   const startedAt = generation;
   const isStale = () => generation !== startedAt;
 
@@ -311,10 +325,10 @@ async function runPull(client: SupabaseClient, userId: string): Promise<void> {
     // Replay anything the user did while the pull was in flight, so their
     // click survives the state that just landed on top of it. After a
     // sign-out there is nothing left to replay onto.
-    const buffered = bufferedDuringPull ?? [];
-    bufferedDuringPull = null;
+    // Only stand down the buffer if it is still this pull's. See startSync.
+    if (bufferedDuringPull === myBuffer) bufferedDuringPull = null;
     if (!isStale()) {
-      for (const op of buffered) {
+      for (const op of myBuffer) {
         const slice = getSyncableSlice(op.slice);
         if (slice) slice.applyRemote(applyOpToPayload(slice.snapshot(), op));
         enqueue(op);
