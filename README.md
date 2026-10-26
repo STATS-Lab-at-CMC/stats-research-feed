@@ -151,6 +151,36 @@ The terms sync with your account; whether to *highlight* them stays on the
 device, like the theme. Highlighting and filtering are independent: you can
 filter to matches with highlighting off, or highlight without filtering.
 
+### The weekly digest
+
+An opt-in Monday email listing what was published in your journals over the
+previous seven days. Off by default — having an account is consent to sync
+your own data between your own devices, not to be emailed — and switched on
+under Account → Weekly digest, where you can also preview it or send yourself
+one immediately.
+
+Anything matching your keywords is lifted to the top, with the term that
+caught it named when the title and abstract do not show it. Everything else is
+grouped by journal, busiest first, at most eight per journal before it links
+back to the feed. **No LLM and no inference:** a weekly email's job is to let
+you see what came out and decide what to open, and grouping by journal does
+that with nothing to be wrong about, no per-send cost, and no delay.
+
+Quiet weeks still send, with the count in the subject line, so silence always
+means something is broken rather than nothing being published. A send cannot
+duplicate: the timestamp of the last send is both the window boundary and the
+idempotency guard, so a retry or a redeploy cannot produce a second copy, and
+it only advances once the mail is accepted — a failure means next week covers
+the gap instead of losing it.
+
+The digest goes to the address you signed in with. **A personal address is
+worth using:** university mail systems often block bulk HTML like this even
+when sign-in email from the same sender arrives normally, and no setting here
+gets past that. Every digest carries an unsubscribe link that works without
+signing in; it opens a confirmation page rather than unsubscribing on sight,
+because mail scanners follow links and would otherwise unsubscribe people who
+never asked to go.
+
 ### Clearing a backlog
 
 **Mark all seen** acts on whatever is currently listed, not the whole feed —
@@ -251,6 +281,8 @@ src/
   app/
     page.tsx, layout.tsx  App Router entry + global CSS
     api/openalex/         Server-side proxy that attaches the OpenAlex key
+    api/cron/digest/      The Monday send job (CRON_SECRET; service role)
+    api/digest/           preview, test-send, status, unsubscribe
     auth/confirm/         Where the magic-link email lands
   components/
     ui/                   Small hand-built shadcn/ui-style primitives
@@ -258,15 +290,25 @@ src/
     feed/                 Feed-specific UI (ArticleCard, FeedControls,
                            FeedStatusBar, empty/loading/error states, …)
     journals/             Journal watchlist management dialog
-    auth/                 Sign-in dialog + header account button
+    auth/                 Sign-in dialog + header account button, keyword
+                           and mark-all-seen dialogs, theme toggle
     zotero/               Connect-library section (in the account dialog)
                            and the export dialog
     info/                 The About panel
   hooks/                  React hooks: watchlist, seen state, bookmarks,
-                           visit tracking, first-run notice, Zotero key
+                           visit tracking, first-run notice, Zotero key,
+                           keywords, custom journals, theme, digest opt-in
   lib/
     auth/AuthProvider.tsx Auth context: session state, magic link, sign-out
-    supabase/client.ts    Browser Supabase client (null when unconfigured)
+    supabase/             Browser client (null when unconfigured), a
+                           user-scoped server client bound by RLS, and the
+                           service-role admin client — server-only, used by
+                           exactly three digest routes
+    digest/               Composing, rendering and sending the weekly email,
+                           plus signed unsubscribe tokens — server-only
+    keywords/match.ts     Whole-word matching over title, abstract and
+                           OpenAlex index terms
+    citation/apa.ts       APA 7th-edition reference formatting
     sync/                 Local-first cloud sync: the store<->cloud bus,
                            the Supabase data layer, and the engine that
                            seeds/pulls/pushes — the ONLY place that talks
@@ -305,9 +347,13 @@ data-fetching and persistence logic centralized, testable, and swappable.
   server-side proxy that holds the API key
 - **Zotero Web API v3** for reference export, called directly from the browser
   so the user's key never reaches this app's server
-- **Supabase** (Postgres + Auth) for the *optional* account layer — magic-link
-  sign-in and cross-device sync. Entirely opt-in at both the deployment level
-  (no env vars → no accounts) and the user level (no sign-in → no server)
+- **Supabase** (Postgres + Auth) for the *optional* account layer — sign-in by
+  emailed link *or* numeric code, and cross-device sync. Entirely opt-in at
+  both the deployment level (no env vars → no accounts) and the user level
+  (no sign-in → no server)
+- **Resend** + **Vercel Cron** for the opt-in weekly digest — the only
+  scheduled job and the only third-party processor any user data passes
+  through. Unset their variables and neither exists
 
 ## OpenAlex integration
 
@@ -415,7 +461,7 @@ configuration at all, but two optional environment variables matter (see
 | `OPENALEX_API_KEY` | The feed caps at the first 100 results, with a banner saying so. OpenAlex gates cursor paging behind a key, so this is **strongly recommended** — it is free and takes a minute. Note there is no `NEXT_PUBLIC_` prefix: it is read server-side only. |
 | `NEXT_PUBLIC_SUPABASE_URL` / `..._ANON_KEY` | No accounts, no cross-device sync, and no Zotero export (which is account-gated). Everything else works, saved in the browser. |
 
-The weekly digest needs four more, all server-side. Leave them unset and the
+The weekly digest needs five more, all server-side. Leave them unset and the
 digest simply never sends; everything else is unaffected.
 
 | Variable | What it is for |
@@ -447,7 +493,7 @@ npm run lint    # ESLint
 > `npx tsc --noEmit` pass; a cold load retrieves the full feed from
 > `api.openalex.org` with no demo fallback and no unresolved journals; the
 > Supabase migrations are applied and row-level security is confirmed enforced
-> on all four tables (an anonymous write is rejected by Postgres, not just by
+> on all five tables (an anonymous write is rejected by Postgres, not just by
 > the browser); the
 > magic-link sign-in completes end to end and seeds a new account from local
 > state; and the Zotero field mapping is checked against Zotero's own
@@ -463,7 +509,7 @@ npm run lint    # ESLint
 
 Everything the app remembers about you lives in your browser's
 `localStorage`. Without an account that is the whole story — nothing leaves
-your device. With an account, three of these keys additionally sync (see
+your device. With an account, six of these keys additionally sync (see
 "Optional accounts and cross-device sync" below); the rest never do.
 See `src/lib/storage/localStorageAdapter.ts` and
 `src/lib/storage/keys.ts` for the full list of keys. In short, it persists:
@@ -516,6 +562,8 @@ row-level security policies live in
 | Saved articles (full snapshots) | Yes | Same reasoning, and the snapshot keeps them readable after a journal is unfollowed |
 | Which articles went to Zotero | Yes | Bookkeeping, not a credential. Kept per-browser it was useless: a second device re-exported everything |
 | Journals you added yourself | Yes | The watchlist syncs ids; without the definitions, another device gets ids it cannot render or fetch |
+| Saved keywords | Yes | Research-specific curation, same reasoning as the watchlist. The *highlight* toggle stays per-device: it changes how a page looks, not what the account holds |
+| Weekly digest opt-in | Server-side, outside the sync engine | The opposite of the rows above: state the server owns and reads while nobody is signed in. There is no sensible signed-out value to keep locally, so there is nothing to sync |
 | **Zotero API key** | **No** | **Can alter or delete an entire library. Stays in the browser that entered it, travels only to api.zotero.org** |
 | Previous-visit timestamps | No | Genuinely per-device: "new since your last visit" means your last visit *here* |
 | OpenAlex source/works caches | No | Disposable performance data with a 20-minute/24-hour TTL. Syncing them would add write traffic and staleness bugs for no benefit |
@@ -554,7 +602,7 @@ lib/zotero/client.ts            Zotero API; the only reader of the key
 ```
 
 Schema and row-level security policies live in
-[`supabase/migrations/`](supabase/migrations/) — run both files. Auth email
+[`supabase/migrations/`](supabase/migrations/) — run all five, in order. Auth email
 templates are in [`supabase/email-templates/`](supabase/email-templates/) and
 are **not optional for institutional email**: the stock Supabase template links
 through an endpoint that university mail scanners consume before the reader
@@ -580,16 +628,11 @@ touch Supabase directly.
   other of local changes; the second tab picks them up on reload or refocus.
 - **No self-service account deletion.** Removing a user is a manual
   `delete from auth.users` in the Supabase dashboard (it cascades).
-- **The Supabase account layer has not been run against a live Supabase
-  project.** The machine this was built on had no Docker or Supabase CLI, so
-  no Postgres could be started locally. Typecheck, lint, and production build
-  pass; the signed-out path, the sign-in dialog, the unreachable-server error
-  path, and the `/auth/confirm` failure screen were all exercised in a
-  browser. What remains unverified is everything that needs a real server:
-  the migration SQL actually applying, the RLS policies, a real magic-link
-  round trip, and sync between two devices. Walk through "Checking it
-  actually works" in [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) once before
-  relying on it.
+- **Sync between two devices has not been exercised.** The account layer has
+  since been run against a live Supabase project — the migrations apply, RLS
+  is enforced, and both sign-in paths complete — but one browser writing and
+  a second reading back has not been walked through end to end. See "Checking
+  it actually works" in [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md).
 - **An OpenAlex API key is effectively required.** Without `OPENALEX_API_KEY`
   the feed is capped at the first 100 results, because OpenAlex gates cursor
   paging behind a key. The app detects this and shows a "showing only part of
@@ -612,7 +655,8 @@ touch Supabase directly.
 - **Topic filtering was intentionally not built.** OpenAlex's topic/concept
   metadata isn't reliably populated for every work, and the brief explicitly
   said not to sacrifice core functionality for it.
-- **No push notifications or email digests** — this is a pull-based feed you
+- **The digest is weekly only** — there is no daily or immediate option, and it
+  requires an account. Otherwise this is a pull-based feed you
   check when you want to.
 - The 90-day retrieval window and per-request page caps are reasonable
   defaults, not tuned against real traffic volume for all 38 journals at
@@ -652,7 +696,7 @@ To enable accounts on a deployment, add `NEXT_PUBLIC_SUPABASE_URL` and
 origin's `/auth/confirm` to Supabase's redirect allowlist — see
 [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md) step 6.
 
-### The weekly digest
+### Scheduling the weekly digest
 
 [`vercel.json`](vercel.json) schedules `/api/cron/digest` for `0 14 * * 1` —
 Mondays at 14:00 UTC, which is 7am Pacific in summer and 6am in winter. Vercel's
@@ -661,9 +705,13 @@ is immaterial for a weekly email.
 
 Three things are worth knowing before switching it on:
 
-- **It will not send until every variable above is set.** Missing ones produce
-  a 503 from the cron route with the specific variable named, rather than a
-  silent no-op.
+- **Three of the five block a send.** A missing `SUPABASE_SERVICE_ROLE_KEY`,
+  `RESEND_API_KEY` or `DIGEST_FROM_EMAIL` returns a 503 from the cron route
+  naming the variable, rather than a silent no-op. A missing `CRON_SECRET` is
+  different: the route refuses *every* request with a 401, since an
+  unauthenticated send endpoint would be worse than none. Without
+  `DIGEST_UNSUBSCRIBE_SECRET` the digest still sends, but with no unsubscribe
+  link and worse deliverability.
 - **A send cannot duplicate.** `user_settings.last_digest_sent_at` is both the
   window boundary and the idempotency guard: a subscriber mailed within the
   last six days is skipped, so a retry, a redeploy, or a manual trigger cannot

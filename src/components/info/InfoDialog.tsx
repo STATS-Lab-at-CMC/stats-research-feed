@@ -90,14 +90,14 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
           <Section title="Does it cost anything?">
             <p>
               <span className="font-medium text-foreground">Not for you.</span> OpenAlex data is
-              free and open, and this app queries it without an API key or any payment. Every
-              request it makes to OpenAlex is read-only and anonymous, signed in or not.
+              free and open. This deployment uses a free OpenAlex API key, held on the server and
+              never sent to your browser, which raises the daily request budget and is what makes
+              it possible to page past the first hundred results. Any cost falls on the lab, not
+              on you.
             </p>
             <p>
-              OpenAlex does meter API usage as a small daily budget. Keyless access, which is what
-              this app uses, is about $0.10 of usage per day — roughly 1,000 list queries. A free
-              API key raises that tenfold, and paid plans raise it further. The ceiling on request
-              rate is 100 per second.
+              Every request carries nothing about who you are: it names the journals being asked
+              about and nothing else, signed in or not.
             </p>
             <p>
               Normal use sits far below that budget. Loading the default 38-journal watchlist from
@@ -148,11 +148,12 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
             ) : signedIn ? (
               <>
                 <p>
-                  You are signed in, so four things are stored in the STATS Lab&apos;s database (a{" "}
+                  You are signed in, so six things are stored in the STATS Lab&apos;s database (a{" "}
                   <TextLink href={SUPABASE_URL}>Supabase</TextLink> Postgres instance):{" "}
                   <span className="font-medium text-foreground">
                     your journal watchlist, the article identifiers you have marked seen, your
-                    saved articles, and which articles you have exported to Zotero
+                    saved articles, which articles you have exported to Zotero, any journals you
+                    added yourself, and your saved keywords
                   </span>
                   , alongside the email address you signed in with. That is the entire point of an
                   account — it is what lets this feed follow you to another computer.
@@ -160,7 +161,20 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
                 <p>
                   Those rows are readable and writable only by you. Access is enforced in the
                   database itself with row-level security keyed to your user id, not merely checked
-                  in the browser, and this app never uses an administrative key.
+                  in the browser.
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">The weekly digest is the one
+                  exception</span>, and only if you switch it on. It is off by default. Opting in
+                  records that choice and the date of the last send, and every Monday a scheduled job
+                  on the server reads the watchlist and keywords of everyone who opted in — using
+                  an administrative key that bypasses the per-user rule above, because it has to
+                  read many people&apos;s rows to build their emails. That key exists only on the
+                  server and never reaches any browser. The mail itself is delivered by{" "}
+                  <TextLink href="https://resend.com">Resend</TextLink>, which is the only
+                  third-party service any of your data passes through; it is sent to the address
+                  you signed in with, and every digest carries an unsubscribe link that works
+                  without signing in.
                 </p>
                 <p>
                   <span className="font-medium text-foreground">Still local only:</span> your
@@ -178,10 +192,12 @@ export function InfoDialog({ open, onOpenChange }: InfoDialogProps) {
                 </p>
                 <p>
                   An account is available but entirely optional. If you create one, your watchlist,
-                  seen articles, saved articles, and a record of which articles you have exported to
-                  Zotero are stored in the STATS Lab&apos;s database so they follow you between
-                  devices — nothing else is, and you can read the details here again once signed in.
-                  The app contains no analytics, tracking scripts, or third-party embeds either way.
+                  seen articles, saved articles, saved keywords, any journals you added yourself,
+                  and a record of which articles you have exported to Zotero are stored in the
+                  STATS Lab&apos;s database so they follow you between devices. An account also
+                  offers an opt-in weekly digest email, off unless you turn it on; you can read
+                  the details here again once signed in. The app contains no analytics, tracking
+                  scripts, or third-party embeds either way.
                 </p>
               </>
             )}
